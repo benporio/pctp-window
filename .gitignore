@@ -1,6 +1,6 @@
 /script/test*
 /script/vertical*
-/templates/component/modal*
+/templates/components/modal*
 /proc
 /test
 /uploads
