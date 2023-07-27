@@ -1,0 +1,7 @@
+/script/test*
+/proc
+/test
+/uploads
+/res/inc/globals.php
+/res/inc/restriction.php
+/res/sql/tmp

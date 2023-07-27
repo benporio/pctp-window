@@ -1,0 +1,20 @@
+{
+    "enable_test_logging": true,
+    "td_background_color": "lightgray",
+    "selection_background_color": "rgb(255, 204, 102)",
+    "locked_row_background_color": "lightblue",
+    "selected_locked_row_background_color": "#99ff99",
+    "child_parent_step_distance": 2,
+    "data_table_page_length": 10,
+    "use_data_table_setting_length": true,
+    "data_table_common_find_header": false,
+    "control_key_row_selection": true,
+    "run_formulas_on_row_init": true,
+    "constants_refresh_waiting_time": 10000,
+    "auto_hide_attachment_modal_upon_upload_remove": true,
+    "multiple_rates_selection": {
+        "enabled": true,
+        "invalid_value_return_0": true
+    },
+    "disable_checkbox_on_locked_data_row": true
+}

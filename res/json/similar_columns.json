@@ -1,0 +1,186 @@
+[
+    {
+        "SummaryTab": "InvoiceNo",
+        "PodTab": "SINo",
+        "BillingTab": "",
+        "TpTab": "",
+        "PricingTab": "",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "SAPClient",
+        "BillingTab": "SAPClient",
+        "TpTab": "",
+        "PricingTab": "ClientTag",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "ClientName",
+        "PodTab": "ClientName",
+        "BillingTab": "CustomerName",
+        "TpTab": "ClientName",
+        "PricingTab": "CustomerName",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "SAPTrucker",
+        "BillingTab": "",
+        "TpTab": "TruckerSAP",
+        "PricingTab": "TruckerTag",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "TruckerName",
+        "PodTab": "TruckerName",
+        "BillingTab": "",
+        "TpTab": "TruckerName",
+        "PricingTab": "TruckerName",
+        "TreasuryTab": "TruckerName"
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "ApprovalStatus",
+        "BillingTab": "Status",
+        "TpTab": "",
+        "PricingTab": "",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "TotalNoExceed",
+        "BillingTab": "TotalExceed",
+        "TpTab": "",
+        "PricingTab": "",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "ShipmentNo",
+        "BillingTab": "",
+        "TpTab": "ShipmentManifestNo",
+        "PricingTab": "",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "",
+        "BillingTab": "GrossInitialRate",
+        "TpTab": "",
+        "PricingTab": "GrossClientRates",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "",
+        "BillingTab": "Demurrage",
+        "TpTab": "",
+        "PricingTab": "Demurrage4",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "",
+        "BillingTab": "AddCharges",
+        "TpTab": "",
+        "PricingTab": "AddtlCharges2",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "",
+        "BillingTab": "",
+        "TpTab": "GrossTruckerRatesN",
+        "PricingTab": "GrossTruckerRatesTax",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "",
+        "BillingTab": "",
+        "TpTab": "RateBasis",
+        "PricingTab": "RateBasisT",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "",
+        "BillingTab": "",
+        "TpTab": "TaxType",
+        "PricingTab": "TaxTypeT",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "",
+        "BillingTab": "",
+        "TpTab": "Demurrage",
+        "PricingTab": "Demurrage2",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "",
+        "BillingTab": "",
+        "TpTab": "AddtlDrop",
+        "PricingTab": "AddtlDrop2",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "",
+        "BillingTab": "",
+        "TpTab": "BoomTruck",
+        "PricingTab": "BoomTruck2",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "",
+        "BillingTab": "",
+        "TpTab": "Manpower",
+        "PricingTab": "Manpower2",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "",
+        "BillingTab": "",
+        "TpTab": "BackLoad",
+        "PricingTab": "Backload2",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "",
+        "BillingTab": "",
+        "TpTab": "Addtlcharges",
+        "PricingTab": "totalAddtlCharges2",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "",
+        "BillingTab": "",
+        "TpTab": "DemurrageN",
+        "PricingTab": "Demurrage3",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "",
+        "PodTab": "",
+        "BillingTab": "",
+        "TpTab": "AddtlChargesN",
+        "PricingTab": "AddtlCharges",
+        "TreasuryTab": ""
+    },
+    {
+        "SummaryTab": "BookingNumber",
+        "PodTab": "BookingNumber",
+        "BillingTab": "BookingId",
+        "TpTab": "BookingId",
+        "PricingTab": "BookingId",
+        "TreasuryTab": "BookingId"
+    }
+]
