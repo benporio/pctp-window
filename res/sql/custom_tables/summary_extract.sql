@@ -201,7 +201,14 @@ SELECT
     + ISNULL(billing.U_ActualAddCharges, 0)) AS U_VarAR,
     TF.U_TotalAP,
     TF.U_VarTP,
-    TF.U_Paid AS U_APDocNum,
+    CASE 
+        WHEN TF.U_DocNum IN (NULL, '') THEN TF.U_Paid
+        ELSE 
+            CASE 
+                WHEN TF.U_Paid IN (NULL, '') THEN TF.U_DocNum 
+                ELSE CONCAT(TF.U_DocNum, ', ', TF.U_Paid)
+            END
+    END AS U_APDocNum,
     CAST((
         SELECT DISTINCT
         SUBSTRING(
