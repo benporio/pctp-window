@@ -27,7 +27,7 @@ PRINT 'UPDATING [@FirstratesTP]'
 
 PRINT 'CREATING TMP_UPDATE_TP_FORMULA'
 
-    DROP TABLE IF EXISTS TMP_UPDATE_TP_FORMULA_202307241047PM
+    DROP TABLE IF EXISTS TMP_UPDATE_TP_FORMULA_202307280352PM
     SELECT
 
         T0.U_BookingId,
@@ -2814,7 +2814,7 @@ PRINT 'CREATING TMP_UPDATE_TP_FORMULA'
             )
         ) AS U_ClientPenaltyCalc
 
-    INTO TMP_UPDATE_TP_FORMULA_202307241047PM
+    INTO TMP_UPDATE_TP_FORMULA_202307280352PM
 
     FROM [dbo].[@PCTP_TP] T0 WITH (NOLOCK)
         RIGHT JOIN [dbo].[@PCTP_POD] pod ON T0.U_BookingId = pod.U_BookingNumber AND CAST(pod.U_PODStatusDetail as nvarchar(max)) LIKE '%Verified%'
@@ -2832,17 +2832,17 @@ PRINT 'INSERTING TARGET BNs TO TP_FORMULA'
     INSERT INTO TP_FORMULA
     SELECT
         *
-    FROM TMP_UPDATE_TP_FORMULA_202307241047PM
+    FROM TMP_UPDATE_TP_FORMULA_202307280352PM
 
 PRINT 'DROPPING TMP_UPDATE_TP_FORMULA'
 
-    DROP TABLE IF EXISTS TMP_UPDATE_TP_FORMULA_202307241047PM
+    DROP TABLE IF EXISTS TMP_UPDATE_TP_FORMULA_202307280352PM
 
 -------->>BILLING_EXTRACT
 
 PRINT 'CREATING TMP_UPDATE_BILLING_EXTRACT'
 
-    DROP TABLE IF EXISTS TMP_UPDATE_BILLING_EXTRACT_202307241047PM
+    DROP TABLE IF EXISTS TMP_UPDATE_BILLING_EXTRACT_202307280352PM
     SELECT
         --COLUMNS
         T0.U_BookingId AS U_BookingNumber ,
@@ -2936,7 +2936,16 @@ PRINT 'CREATING TMP_UPDATE_BILLING_EXTRACT'
         T0.U_RateAdjustments,
         T0.U_ActualDemurrage,
         T0.U_ActualAddCharges,
-        T0.U_TotalRecClients,
+        ISNULL(pricing.U_GrossClientRates, 0) 
+        + ISNULL(pricing.U_Demurrage, 0)
+        + (ISNULL(pricing.U_AddtlDrop,0) + 
+        ISNULL(pricing.U_BoomTruck,0) + 
+        ISNULL(pricing.U_Manpower,0) + 
+        ISNULL(pricing.U_Backload,0))
+        + ISNULL(T0.U_ActualBilledRate, 0)
+        + ISNULL(T0.U_RateAdjustments, 0)
+        + ISNULL(T0.U_ActualDemurrage, 0)
+        + ISNULL(T0.U_ActualAddCharges, 0) AS U_TotalRecClients,
         T0.U_CheckingTotalBilled,
         T0.U_Checking,
         T0.U_CWT2307,
@@ -2966,11 +2975,21 @@ PRINT 'CREATING TMP_UPDATE_BILLING_EXTRACT'
         FROM OINV H
             LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
         WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingId) AS U_TotalAR,
-        (SELECT
+        ISNULL((SELECT
             SUM(L.PriceAfVAT)
         FROM OINV H
             LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
-        WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingId) - T0.U_TotalRecClients AS U_VarAR,
+        WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingId), 0) 
+        - (ISNULL(pricing.U_GrossClientRates, 0) 
+        + ISNULL(pricing.U_Demurrage, 0)
+        + (ISNULL(pricing.U_AddtlDrop,0) + 
+        ISNULL(pricing.U_BoomTruck,0) + 
+        ISNULL(pricing.U_Manpower,0) + 
+        ISNULL(pricing.U_Backload,0))
+        + ISNULL(T0.U_ActualBilledRate, 0)
+        + ISNULL(T0.U_RateAdjustments, 0)
+        + ISNULL(T0.U_ActualDemurrage, 0)
+        + ISNULL(T0.U_ActualAddCharges, 0)) AS U_VarAR,
         CAST((
             SELECT DISTINCT
             SUBSTRING(
@@ -3056,7 +3075,7 @@ PRINT 'CREATING TMP_UPDATE_BILLING_EXTRACT'
 
     --COLUMNS
 
-    INTO TMP_UPDATE_BILLING_EXTRACT_202307241047PM
+    INTO TMP_UPDATE_BILLING_EXTRACT_202307280352PM
 
     FROM [dbo].[@PCTP_BILLING] T0  WITH (NOLOCK)
         INNER JOIN [dbo].[@PCTP_POD] pod ON T0.U_BookingId = pod.U_BookingNumber
@@ -3084,17 +3103,17 @@ PRINT 'INSERTING TARGET BNs TO BILLING_EXTRACT'
     INSERT INTO BILLING_EXTRACT
     SELECT
         *
-    FROM TMP_UPDATE_BILLING_EXTRACT_202307241047PM
+    FROM TMP_UPDATE_BILLING_EXTRACT_202307280352PM
 
 PRINT 'DROPPING TMP_UPDATE_BILLING_EXTRACT'
 
-    DROP TABLE IF EXISTS TMP_UPDATE_BILLING_EXTRACT_202307241047PM
+    DROP TABLE IF EXISTS TMP_UPDATE_BILLING_EXTRACT_202307280352PM
 
 -------->>TP_EXTRACT
 
 PRINT 'CREATING TMP_UPDATE_TP_EXTRACT'
 
-    DROP TABLE IF EXISTS TMP_UPDATE_TP_EXTRACT_202307241047PM
+    DROP TABLE IF EXISTS TMP_UPDATE_TP_EXTRACT_202307280352PM
     SELECT
 
 
@@ -3210,7 +3229,34 @@ PRINT 'CREATING TMP_UPDATE_TP_EXTRACT'
     ISNULL(TF.U_TotalSubPenalty, 0) AS U_TotalSubPenalty,
     ISNULL(TF.U_TotalPenaltyWaived, 0) AS U_TotalPenaltyWaived,
     ISNULL(T0.U_TotalPenalty, 0) AS U_TotalPenalty,
-    ISNULL(T0.U_TotalPayable, 0) AS U_TotalPayable,
+    ISNULL(CASE
+        WHEN ISNULL(T5.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_GrossTruckerRates, 0)
+        WHEN ISNULL(T5.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_GrossTruckerRates, 0) / 1.12)
+    END, 0) 
+    + ISNULL(CASE
+        WHEN ISNULL(T5.VatStatus,'Y') = 'Y' THEN ISNULL(TRY_PARSE(CAST(pricing.U_Demurrage2 AS nvarchar) AS FLOAT), 0)
+        WHEN ISNULL(T5.VatStatus,'Y') = 'N' THEN (ISNULL(TRY_PARSE(CAST(pricing.U_Demurrage2 AS nvarchar) AS FLOAT), 0) / 1.12)
+    END, 0) 
+    + ISNULL(CASE
+        WHEN ISNULL(T5.VatStatus,'Y') = 'Y' THEN 
+        (ISNULL(pricing.U_AddtlDrop2, 0) 
+        + ISNULL(pricing.U_BoomTruck2, 0) 
+        + ISNULL(pricing.U_Manpower2, 0) 
+        + ISNULL(pricing.U_Backload2, 0))
+        WHEN ISNULL(T5.VatStatus,'Y') = 'N' THEN 
+        ((ISNULL(pricing.U_AddtlDrop2, 0) 
+        + ISNULL(pricing.U_BoomTruck2, 0) 
+        + ISNULL(pricing.U_Manpower2, 0) 
+        + ISNULL(pricing.U_Backload2, 0)) / 1.12)
+    END, 0) 
+    + ISNULL(T0.U_ActualRates, 0) 
+    + ISNULL(T0.U_RateAdjustments, 0) 
+    + ISNULL(T0.U_ActualDemurrage, 0) 
+    + ISNULL(T0.U_ActualCharges, 0) 
+    + ISNULL(TRY_PARSE(CAST(T0.U_BoomTruck2 AS nvarchar) AS FLOAT), 0) 
+    + ISNULL(T0.U_OtherCharges, 0) 
+    - (ISNULL(T0.U_CAandDP,0) + ISNULL(T0.U_Interest,0) + ISNULL(T0.U_OtherDeductions,0) 
+    + (ABS(ABS(ISNULL(TF.U_TotalSubPenalty,0)) - ABS(ISNULL(TF.U_TotalPenaltyWaived,0))))) AS U_TotalPayable,
     T0.U_EWT2307,
     ISNULL(T0.U_TotalPayableRec, 0) AS U_TotalPayableRec,
 
@@ -3261,7 +3307,7 @@ PRINT 'CREATING TMP_UPDATE_TP_EXTRACT'
         INNER JOIN VPM2 T1 ON T1.DocNum = T0.DocEntry
         LEFT JOIN VPM1 T2 ON T1.DocNum = T2.DocNum
         LEFT JOIN OPCH T3 ON T1.DocEntry = T3.DocEntry
-        WHERE T3.DocNum IN (SELECT RTRIM(LTRIM(value)) AS DocNum FROM STRING_SPLIT(TF.U_Paid, ','))
+        WHERE T0.Canceled <> 'Y' AND T3.DocNum IN (SELECT RTRIM(LTRIM(value)) AS DocNum FROM STRING_SPLIT(TF.U_Paid, ','))
         FOR XML PATH (''), TYPE).value('text()[1]','nvarchar(max)'), 2, 1000
     ) AS U_ActualPaymentDate,
     SUBSTRING((
@@ -3271,7 +3317,7 @@ PRINT 'CREATING TMP_UPDATE_TP_EXTRACT'
         INNER JOIN VPM2 T1 ON T1.DocNum = T0.DocEntry
         LEFT JOIN VPM1 T2 ON T1.DocNum = T2.DocNum
         LEFT JOIN OPCH T3 ON T1.DocEntry = T3.DocEntry
-        WHERE T3.DocNum IN (SELECT RTRIM(LTRIM(value)) AS DocNum FROM STRING_SPLIT(TF.U_Paid, ','))
+        WHERE T0.Canceled <> 'Y' AND T3.DocNum IN (SELECT RTRIM(LTRIM(value)) AS DocNum FROM STRING_SPLIT(TF.U_Paid, ','))
         FOR XML PATH (''), TYPE).value('text()[1]','nvarchar(max)'), 2, 1000
     ) AS U_PaymentReference,
     SUBSTRING((
@@ -3286,7 +3332,7 @@ PRINT 'CREATING TMP_UPDATE_TP_EXTRACT'
         INNER JOIN VPM2 T1 ON T1.DocNum = T0.DocEntry
         LEFT JOIN VPM1 T2 ON T1.DocNum = T2.DocNum
         LEFT JOIN OPCH T3 ON T1.DocEntry = T3.DocEntry
-        WHERE T3.DocNum IN (SELECT RTRIM(LTRIM(value)) AS DocNum FROM STRING_SPLIT(TF.U_Paid, ','))
+        WHERE T0.Canceled <> 'Y' AND T3.DocNum IN (SELECT RTRIM(LTRIM(value)) AS DocNum FROM STRING_SPLIT(TF.U_Paid, ','))
         FOR XML PATH (''), TYPE).value('text()[1]','nvarchar(max)'), 2, 1000
     ) AS U_PaymentStatus
 
@@ -3297,7 +3343,7 @@ PRINT 'CREATING TMP_UPDATE_TP_EXTRACT'
 
 --COLUMNS
 
-INTO TMP_UPDATE_TP_EXTRACT_202307241047PM
+INTO TMP_UPDATE_TP_EXTRACT_202307280352PM
 
 FROM [dbo].[@PCTP_TP] T0  WITH (NOLOCK)
     INNER JOIN [dbo].[@PCTP_POD] pod ON T0.U_BookingId = pod.U_BookingNumber AND CAST(pod.U_PODStatusDetail as nvarchar(max)) LIKE '%Verified%'
@@ -3320,16 +3366,16 @@ PRINT 'INSERTING TARGET BNs TO TP_EXTRACT'
     INSERT INTO TP_EXTRACT
     SELECT
         *
-    FROM TMP_UPDATE_TP_EXTRACT_202307241047PM
+    FROM TMP_UPDATE_TP_EXTRACT_202307280352PM
 
 PRINT 'DROPPING TMP_UPDATE_TP_EXTRACT'
 
-    DROP TABLE IF EXISTS TMP_UPDATE_TP_EXTRACT_202307241047PM
+    DROP TABLE IF EXISTS TMP_UPDATE_TP_EXTRACT_202307280352PM
 
 -------->>POD_EXTRACT
 PRINT 'CREATING TMP_UPDATE_POD_EXTRACT'
 
-    DROP TABLE IF EXISTS TMP_UPDATE_POD_EXTRACT_202307241047PM
+    DROP TABLE IF EXISTS TMP_UPDATE_POD_EXTRACT_202307280352PM
     SELECT
         --COLUMNS
         CASE
@@ -3735,7 +3781,7 @@ PRINT 'CREATING TMP_UPDATE_POD_EXTRACT'
         CAST(T0.U_ApprovalStatus as nvarchar(max)) AS U_ApprovalStatus,
         CAST(T0.U_TotalInvAmount as nvarchar(max)) AS U_TotalInvAmount
 
-    INTO TMP_UPDATE_POD_EXTRACT_202307241047PM
+    INTO TMP_UPDATE_POD_EXTRACT_202307280352PM
     --COLUMNS
     FROM [dbo].[@PCTP_POD] T0 WITH (NOLOCK)
         --JOINS
@@ -3758,16 +3804,16 @@ PRINT 'INSERTING TARGET BNs TO POD_EXTRACT'
     INSERT INTO POD_EXTRACT
     SELECT
         *
-    FROM TMP_UPDATE_POD_EXTRACT_202307241047PM
+    FROM TMP_UPDATE_POD_EXTRACT_202307280352PM
 
 PRINT 'DROPPING TMP_UPDATE_POD_EXTRACT'
 
-    DROP TABLE IF EXISTS TMP_UPDATE_POD_EXTRACT_202307241047PM
+    DROP TABLE IF EXISTS TMP_UPDATE_POD_EXTRACT_202307280352PM
 
 -------->>SUMMARY_EXTRACT
 PRINT 'CREATING TMP_UPDATE_SUMMARY_EXTRACT'
 
-    DROP TABLE IF EXISTS TMP_UPDATE_SUMMARY_EXTRACT_202307241047PM
+    DROP TABLE IF EXISTS TMP_UPDATE_SUMMARY_EXTRACT_202307280352PM
     SELECT
     --COLUMNS
     T0.Code,
@@ -3779,7 +3825,7 @@ PRINT 'CREATING TMP_UPDATE_SUMMARY_EXTRACT'
     CASE
       WHEN ISNULL(T1.VatStatus,'Y') = 'Y' THEN 'VAT' ELSE 'NONVAT'
     END AS 'U_ClientVatStatus',
-    T0.U_TruckerName,
+    T2.CardName AS U_TruckerName,
     T0.U_SAPTrucker,
     CASE
        WHEN ISNULL(T2.VatStatus,'Y') = 'Y' THEN 'VAT' ELSE 'NONVAT'
@@ -3789,6 +3835,7 @@ PRINT 'CREATING TMP_UPDATE_SUMMARY_EXTRACT'
     T0.U_ISLAND_D,
     T0.U_IFINTERISLAND,
     T0.U_DeliveryStatus,
+    T0.U_DeliveryDateDTR,
     T0.U_DeliveryDatePOD,
     T0.U_ClientReceivedDate,
     T0.U_ActualDateRec_Intitial,
@@ -3903,8 +3950,44 @@ PRINT 'CREATING TMP_UPDATE_SUMMARY_EXTRACT'
     tp.U_PaymentReference,
     tp.U_PaymentStatus,
     '' AS U_ProofOfPayment,
-    billing.U_TotalRecClients,
-    ISNULL(tp.U_TotalPayable, 0) AS U_TotalPayable,
+    ISNULL(pricing.U_GrossClientRates, 0) 
+    + ISNULL(pricing.U_Demurrage, 0)
+    + (ISNULL(pricing.U_AddtlDrop,0) + 
+    ISNULL(pricing.U_BoomTruck,0) + 
+    ISNULL(pricing.U_Manpower,0) + 
+    ISNULL(pricing.U_Backload,0))
+    + ISNULL(billing.U_ActualBilledRate, 0)
+    + ISNULL(billing.U_RateAdjustments, 0)
+    + ISNULL(billing.U_ActualDemurrage, 0)
+    + ISNULL(billing.U_ActualAddCharges, 0) AS U_TotalRecClients,
+    ISNULL(CASE
+        WHEN ISNULL(T2.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_GrossTruckerRates, 0)
+        WHEN ISNULL(T2.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_GrossTruckerRates, 0) / 1.12)
+    END, 0) 
+    + ISNULL(CASE
+        WHEN ISNULL(T2.VatStatus,'Y') = 'Y' THEN ISNULL(TRY_PARSE(CAST(pricing.U_Demurrage2 AS nvarchar) AS FLOAT), 0)
+        WHEN ISNULL(T2.VatStatus,'Y') = 'N' THEN (ISNULL(TRY_PARSE(CAST(pricing.U_Demurrage2 AS nvarchar) AS FLOAT), 0) / 1.12)
+    END, 0) 
+    + ISNULL(CASE
+        WHEN ISNULL(T2.VatStatus,'Y') = 'Y' THEN 
+        (ISNULL(pricing.U_AddtlDrop2, 0) 
+        + ISNULL(pricing.U_BoomTruck2, 0) 
+        + ISNULL(pricing.U_Manpower2, 0) 
+        + ISNULL(pricing.U_Backload2, 0))
+        WHEN ISNULL(T2.VatStatus,'Y') = 'N' THEN 
+        ((ISNULL(pricing.U_AddtlDrop2, 0) 
+        + ISNULL(pricing.U_BoomTruck2, 0) 
+        + ISNULL(pricing.U_Manpower2, 0) 
+        + ISNULL(pricing.U_Backload2, 0)) / 1.12)
+    END, 0) 
+    + ISNULL(tp.U_ActualRates, 0) 
+    + ISNULL(tp.U_RateAdjustments, 0) 
+    + ISNULL(tp.U_ActualDemurrage, 0) 
+    + ISNULL(tp.U_ActualCharges, 0) 
+    + ISNULL(TRY_PARSE(CAST(tp.U_BoomTruck2 AS nvarchar) AS FLOAT), 0) 
+    + ISNULL(tp.U_OtherCharges, 0) 
+    - (ISNULL(tp.U_CAandDP,0) + ISNULL(tp.U_Interest,0) + ISNULL(tp.U_OtherDeductions,0) 
+    + (ABS(ABS(ISNULL(TF.U_TotalSubPenalty,0)) - ABS(ISNULL(TF.U_TotalPenaltyWaived,0))))) AS U_TotalPayable,
     CASE 
     WHEN substring(tp.U_PVNo, 1, 2) <> ' ,'
       THEN tp.U_PVNo
@@ -3915,14 +3998,31 @@ PRINT 'CREATING TMP_UPDATE_SUMMARY_EXTRACT'
     FROM OINV H
         LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
     WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingNumber) AS U_TotalAR,
-    (SELECT
+    ISNULL((SELECT
         SUM(L.PriceAfVAT)
     FROM OINV H
         LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
-    WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingNumber) - billing.U_TotalRecClients AS U_VarAR,
+    WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingNumber), 0) 
+    - (ISNULL(pricing.U_GrossClientRates, 0) 
+    + ISNULL(pricing.U_Demurrage, 0)
+    + (ISNULL(pricing.U_AddtlDrop,0) + 
+    ISNULL(pricing.U_BoomTruck,0) + 
+    ISNULL(pricing.U_Manpower,0) + 
+    ISNULL(pricing.U_Backload,0))
+    + ISNULL(billing.U_ActualBilledRate, 0)
+    + ISNULL(billing.U_RateAdjustments, 0)
+    + ISNULL(billing.U_ActualDemurrage, 0)
+    + ISNULL(billing.U_ActualAddCharges, 0)) AS U_VarAR,
     TF.U_TotalAP,
     TF.U_VarTP,
-    TF.U_DocNum AS U_APDocNum,
+    CASE 
+        WHEN TF.U_DocNum IS NULL OR TF.U_DocNum = '' THEN TF.U_Paid
+        ELSE 
+            CASE 
+                WHEN TF.U_Paid IS NULL OR TF.U_Paid = '' THEN TF.U_DocNum 
+                ELSE CONCAT(TF.U_DocNum, ', ', TF.U_Paid)
+            END
+    END AS U_APDocNum,
     CAST((
         SELECT DISTINCT
         SUBSTRING(
@@ -3942,6 +4042,8 @@ PRINT 'CREATING TMP_UPDATE_SUMMARY_EXTRACT'
     CAST(T0.U_DeliveryOrigin as nvarchar(max)) AS U_DeliveryOrigin,
     CAST(T0.U_Destination as nvarchar(max)) AS U_Destination,
     CAST(T0.U_PODStatusDetail as nvarchar(max)) AS U_PODStatusDetail,
+    CAST(T0.U_Remarks as nvarchar(max)) AS U_Remarks,
+    CAST(T0.U_WaybillNo as nvarchar(max)) AS U_WaybillNo,
     CAST((
         SELECT DISTINCT
         SUBSTRING(
@@ -3982,7 +4084,7 @@ PRINT 'CREATING TMP_UPDATE_SUMMARY_EXTRACT'
         AND header.CANCELED = 'N') as nvarchar(max)
     ) AS U_InvoiceNo
 --COLUMNS
-INTO TMP_UPDATE_SUMMARY_EXTRACT_202307241047PM
+INTO TMP_UPDATE_SUMMARY_EXTRACT_202307280352PM
 FROM [dbo].[@PCTP_POD] T0  WITH (NOLOCK)
     --JOINS
     LEFT JOIN [dbo].[@PCTP_BILLING] billing ON T0.U_BookingNumber = billing.U_BookingId
@@ -4004,16 +4106,16 @@ PRINT 'INSERTING TARGET BNs TO SUMMARY_EXTRACT'
     INSERT INTO SUMMARY_EXTRACT
 SELECT
     *
-FROM TMP_UPDATE_SUMMARY_EXTRACT_202307241047PM
+FROM TMP_UPDATE_SUMMARY_EXTRACT_202307280352PM
 
 PRINT 'DROPPING TMP_UPDATE_SUMMARY_EXTRACT'
 
-    DROP TABLE IF EXISTS TMP_UPDATE_SUMMARY_EXTRACT_202307241047PM
+    DROP TABLE IF EXISTS TMP_UPDATE_SUMMARY_EXTRACT_202307280352PM
 
 -------->>PRICING_EXTRACT
 PRINT 'CREATING TMP_UPDATE_PRICING_EXTRACT'
 
-    DROP TABLE IF EXISTS TMP_UPDATE_PRICING_EXTRACT_202307241047PM
+    DROP TABLE IF EXISTS TMP_UPDATE_PRICING_EXTRACT_202307280352PM
     SELECT
     --COLUMNS
     T0.U_BookingId AS U_BookingNumber ,
@@ -4188,17 +4290,36 @@ PRINT 'CREATING TMP_UPDATE_PRICING_EXTRACT'
     billing.U_RateAdjustments AS U_BillingRateAdjustments,
     billing.U_ActualDemurrage AS U_BillingActualDemurrage,
     billing.U_ActualAddCharges,
-    billing.U_TotalRecClients,
+    ISNULL(T0.U_GrossClientRates, 0) 
+    + ISNULL(T0.U_Demurrage, 0)
+    + (ISNULL(T0.U_AddtlDrop,0) + 
+    ISNULL(T0.U_BoomTruck,0) + 
+    ISNULL(T0.U_Manpower,0) + 
+    ISNULL(T0.U_Backload,0))
+    + ISNULL(billing.U_ActualBilledRate, 0)
+    + ISNULL(billing.U_RateAdjustments, 0)
+    + ISNULL(billing.U_ActualDemurrage, 0)
+    + ISNULL(billing.U_ActualAddCharges, 0) AS U_TotalRecClients,
     (SELECT
         SUM(L.PriceAfVAT)
     FROM OINV H
         LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
     WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingId) AS U_TotalAR,
-    (SELECT
+    ISNULL((SELECT
         SUM(L.PriceAfVAT)
     FROM OINV H
         LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
-    WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingId) - billing.U_TotalRecClients AS U_VarAR,
+    WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingId), 0) 
+    - (ISNULL(T0.U_GrossClientRates, 0) 
+    + ISNULL(T0.U_Demurrage, 0)
+    + (ISNULL(T0.U_AddtlDrop,0) + 
+    ISNULL(T0.U_BoomTruck,0) + 
+    ISNULL(T0.U_Manpower,0) + 
+    ISNULL(T0.U_Backload,0))
+    + ISNULL(billing.U_ActualBilledRate, 0)
+    + ISNULL(billing.U_RateAdjustments, 0)
+    + ISNULL(billing.U_ActualDemurrage, 0)
+    + ISNULL(billing.U_ActualAddCharges, 0)) AS U_VarAR,
     CASE
         WHEN EXISTS(SELECT 1
     FROM ORDR header
@@ -4211,7 +4332,34 @@ PRINT 'CREATING TMP_UPDATE_PRICING_EXTRACT'
     ISNULL(tp.U_ActualCharges, 0) AS U_ActualCharges,
     ISNULL(tp.U_BoomTruck2, 0) AS U_TPBoomTruck2,
     ISNULL(tp.U_OtherCharges, 0) AS U_OtherCharges,
-    ISNULL(tp.U_TotalPayable, 0) AS U_TotalPayable,
+    ISNULL(CASE
+        WHEN ISNULL(T2.VatStatus,'Y') = 'Y' THEN ISNULL(T0.U_GrossTruckerRates, 0)
+        WHEN ISNULL(T2.VatStatus,'Y') = 'N' THEN (ISNULL(T0.U_GrossTruckerRates, 0) / 1.12)
+    END, 0) 
+    + ISNULL(CASE
+        WHEN ISNULL(T2.VatStatus,'Y') = 'Y' THEN ISNULL(TRY_PARSE(CAST(T0.U_Demurrage2 AS nvarchar) AS FLOAT), 0)
+        WHEN ISNULL(T2.VatStatus,'Y') = 'N' THEN (ISNULL(TRY_PARSE(CAST(T0.U_Demurrage2 AS nvarchar) AS FLOAT), 0) / 1.12)
+    END, 0) 
+    + ISNULL(CASE
+        WHEN ISNULL(T2.VatStatus,'Y') = 'Y' THEN 
+        (ISNULL(T0.U_AddtlDrop2, 0) 
+        + ISNULL(T0.U_BoomTruck2, 0) 
+        + ISNULL(T0.U_Manpower2, 0) 
+        + ISNULL(T0.U_Backload2, 0))
+        WHEN ISNULL(T2.VatStatus,'Y') = 'N' THEN 
+        ((ISNULL(T0.U_AddtlDrop2, 0) 
+        + ISNULL(T0.U_BoomTruck2, 0) 
+        + ISNULL(T0.U_Manpower2, 0) 
+        + ISNULL(T0.U_Backload2, 0)) / 1.12)
+    END, 0) 
+    + ISNULL(tp.U_ActualRates, 0) 
+    + ISNULL(tp.U_RateAdjustments, 0) 
+    + ISNULL(tp.U_ActualDemurrage, 0) 
+    + ISNULL(tp.U_ActualCharges, 0) 
+    + ISNULL(TRY_PARSE(CAST(tp.U_BoomTruck2 AS nvarchar) AS FLOAT), 0) 
+    + ISNULL(tp.U_OtherCharges, 0) 
+    - (ISNULL(tp.U_CAandDP,0) + ISNULL(tp.U_Interest,0) + ISNULL(tp.U_OtherDeductions,0) 
+    + (ABS(ABS(ISNULL(TF.U_TotalSubPenalty,0)) - ABS(ISNULL(TF.U_TotalPenaltyWaived,0))))) AS U_TotalPayable,
     CASE 
     WHEN substring(tp.U_PVNo, 1, 2) <> ' ,'
       THEN tp.U_PVNo
@@ -4240,10 +4388,11 @@ PRINT 'CREATING TMP_UPDATE_PRICING_EXTRACT'
     CAST(pod.U_DeliveryOrigin as nvarchar(max)) AS U_DeliveryOrigin,
     CAST(pod.U_Destination as nvarchar(max)) AS U_Destination,
     CAST(T0.U_RemarksDTR as nvarchar(max)) AS U_RemarksDTR,
-    CAST(T0.U_RemarksPOD as nvarchar(max)) AS U_RemarksPOD
+    CAST(T0.U_RemarksPOD as nvarchar(max)) AS U_RemarksPOD,
+    CAST(pod.U_DocNum as nvarchar(max)) AS U_PODDocNum
 --COLUMNS
 
-INTO TMP_UPDATE_PRICING_EXTRACT_202307241047PM
+INTO TMP_UPDATE_PRICING_EXTRACT_202307280352PM
 
 FROM [dbo].[@PCTP_PRICING] T0  WITH (NOLOCK)
 
@@ -4274,11 +4423,11 @@ PRINT 'INSERTING TARGET BNs TO PRICING_EXTRACT'
     INSERT INTO PRICING_EXTRACT
 SELECT
     *
-FROM TMP_UPDATE_PRICING_EXTRACT_202307241047PM
+FROM TMP_UPDATE_PRICING_EXTRACT_202307280352PM
 
 PRINT 'DROPPING TMP_UPDATE_PRICING_EXTRACT'
 
-    DROP TABLE IF EXISTS TMP_UPDATE_PRICING_EXTRACT_202307241047PM
+    DROP TABLE IF EXISTS TMP_UPDATE_PRICING_EXTRACT_202307280352PM
 
 -------->>DELETING TMP_TARGET
 
