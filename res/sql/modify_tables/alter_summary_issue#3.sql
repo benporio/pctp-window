@@ -8,7 +8,7 @@ ADD U_DeliveryDateDTR DATE,
     
     DROP TABLE IF EXISTS TMP_TARGET
     SELECT
-    T0.U_BookingId AS U_BookingNumber,
+    T0.U_BookingNumber,
     T0.U_DeliveryDateDTR,
     CAST(T0.U_Remarks as nvarchar(max)) AS U_Remarks,
     CAST(T0.U_WaybillNo as nvarchar(max)) AS U_WaybillNo
