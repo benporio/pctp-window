@@ -89,7 +89,24 @@ ISNULL(pricing.U_Backload,0)  AS U_AddCharges,
     T0.U_RateAdjustments,
     T0.U_ActualDemurrage,
     T0.U_ActualAddCharges,
-    T0.U_TotalRecClients,
+    -- T0.U_TotalRecClients,
+    ISNULL(pricing.U_GrossClientRates, 0) 
+    + ISNULL(pricing.U_Demurrage, 0)
+    + (ISNULL(pricing.U_AddtlDrop,0) + 
+    ISNULL(pricing.U_BoomTruck,0) + 
+    ISNULL(pricing.U_Manpower,0) + 
+    ISNULL(pricing.U_Backload,0))
+    + ISNULL(T0.U_ActualBilledRate, 0)
+    + ISNULL(T0.U_RateAdjustments, 0)
+    + ISNULL(T0.U_ActualDemurrage, 0)
+    + ISNULL(T0.U_ActualAddCharges, 0) AS U_TotalRecClients,
+    -- net += Number(this.getValue('GrossInitialRate'));
+    -- net += Number(this.getValue('Demurrage'));
+    -- net += Number(this.getValue('AddCharges'));
+    -- net += Number(this.getValue('ActualBilledRate'));
+    -- net += Number(this.getValue('RateAdjustments'));
+    -- net += Number(this.getValue('ActualDemurrage'));
+    -- net += Number(this.getValue('ActualAddCharges'));
     T0.U_CheckingTotalBilled,
     T0.U_Checking,
     T0.U_CWT2307,
@@ -119,11 +136,31 @@ ISNULL(pricing.U_Backload,0)  AS U_AddCharges,
     FROM OINV H
         LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
     WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingId) AS U_TotalAR,
-    (SELECT
+    ISNULL((SELECT
         SUM(L.PriceAfVAT)
     FROM OINV H
         LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
-    WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingId) - T0.U_TotalRecClients AS U_VarAR,
+    WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingId), 0) 
+    - (ISNULL(pricing.U_GrossClientRates, 0) 
+    + ISNULL(pricing.U_Demurrage, 0)
+    + (ISNULL(pricing.U_AddtlDrop,0) + 
+    ISNULL(pricing.U_BoomTruck,0) + 
+    ISNULL(pricing.U_Manpower,0) + 
+    ISNULL(pricing.U_Backload,0))
+    + ISNULL(T0.U_ActualBilledRate, 0)
+    + ISNULL(T0.U_RateAdjustments, 0)
+    + ISNULL(T0.U_ActualDemurrage, 0)
+    + ISNULL(T0.U_ActualAddCharges, 0)) AS U_VarAR,
+    -- _VarAR: function () {
+    --     try {
+    --         let TotalAR = this.getValue('TotalAR');
+    --         let _TotalRecClients = this._TotalRecClients();
+    --         return TotalAR - _TotalRecClients;
+    --     } catch (error) {
+    --         p.log(error)
+    --         return 0;
+    --     }
+    -- },
     CAST((
         SELECT DISTINCT
         SUBSTRING(

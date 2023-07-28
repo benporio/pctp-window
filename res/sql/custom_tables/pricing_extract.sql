@@ -175,17 +175,36 @@ SELECT
     billing.U_RateAdjustments AS U_BillingRateAdjustments,
     billing.U_ActualDemurrage AS U_BillingActualDemurrage,
     billing.U_ActualAddCharges,
-    billing.U_TotalRecClients,
+    ISNULL(T0.U_GrossClientRates, 0) 
+    + ISNULL(T0.U_Demurrage, 0)
+    + (ISNULL(T0.U_AddtlDrop,0) + 
+    ISNULL(T0.U_BoomTruck,0) + 
+    ISNULL(T0.U_Manpower,0) + 
+    ISNULL(T0.U_Backload,0))
+    + ISNULL(billing.U_ActualBilledRate, 0)
+    + ISNULL(billing.U_RateAdjustments, 0)
+    + ISNULL(billing.U_ActualDemurrage, 0)
+    + ISNULL(billing.U_ActualAddCharges, 0) AS U_TotalRecClients,
     (SELECT
         SUM(L.PriceAfVAT)
     FROM OINV H
         LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
     WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingId) AS U_TotalAR,
-    (SELECT
+    ISNULL((SELECT
         SUM(L.PriceAfVAT)
     FROM OINV H
         LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
-    WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingId) - billing.U_TotalRecClients AS U_VarAR,
+    WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingId), 0) 
+    - (ISNULL(T0.U_GrossClientRates, 0) 
+    + ISNULL(T0.U_Demurrage, 0)
+    + (ISNULL(T0.U_AddtlDrop,0) + 
+    ISNULL(T0.U_BoomTruck,0) + 
+    ISNULL(T0.U_Manpower,0) + 
+    ISNULL(T0.U_Backload,0))
+    + ISNULL(billing.U_ActualBilledRate, 0)
+    + ISNULL(billing.U_RateAdjustments, 0)
+    + ISNULL(billing.U_ActualDemurrage, 0)
+    + ISNULL(billing.U_ActualAddCharges, 0)) AS U_VarAR,
     CASE
         WHEN EXISTS(SELECT 1
     FROM ORDR header
@@ -254,7 +273,8 @@ SELECT
     CAST(pod.U_DeliveryOrigin as nvarchar(max)) AS U_DeliveryOrigin,
     CAST(pod.U_Destination as nvarchar(max)) AS U_Destination,
     CAST(T0.U_RemarksDTR as nvarchar(max)) AS U_RemarksDTR,
-    CAST(T0.U_RemarksPOD as nvarchar(max)) AS U_RemarksPOD
+    CAST(T0.U_RemarksPOD as nvarchar(max)) AS U_RemarksPOD,
+    CAST(pod.U_DocNum as nvarchar(max)) AS U_PODDocNum
 --COLUMNS
 
 INTO PRICING_EXTRACT

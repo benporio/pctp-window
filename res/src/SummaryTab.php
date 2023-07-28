@@ -92,7 +92,8 @@ class SummaryTab extends APctpWindowTab
         ];
         $this->searchableFields = [
             'PODSONum',
-            'InvoiceNo'
+            'InvoiceNo',
+            'PVNo'
         ];
         $this->fieldsFindOptions = [
             'PODSONum' => [
