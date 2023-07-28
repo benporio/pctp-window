@@ -20,6 +20,7 @@ SELECT
     T0.U_ISLAND_D,
     T0.U_IFINTERISLAND,
     T0.U_DeliveryStatus,
+    T0.U_DeliveryDateDTR,
     T0.U_DeliveryDatePOD,
     T0.U_ClientReceivedDate,
     T0.U_ActualDateRec_Intitial,
@@ -217,6 +218,8 @@ SELECT
     CAST(T0.U_DeliveryOrigin as nvarchar(max)) AS U_DeliveryOrigin,
     CAST(T0.U_Destination as nvarchar(max)) AS U_Destination,
     CAST(T0.U_PODStatusDetail as nvarchar(max)) AS U_PODStatusDetail,
+    CAST(T0.U_Remarks as nvarchar(max)) AS U_Remarks,
+    CAST(T0.U_WaybillNo as nvarchar(max)) AS U_WaybillNo,
     CAST((
         SELECT DISTINCT
         SUBSTRING(
