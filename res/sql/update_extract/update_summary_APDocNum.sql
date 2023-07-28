@@ -9,7 +9,14 @@
     SELECT
 
     T0.U_BookingNumber AS U_BookingNumber,
-    TF.U_Paid AS U_APDocNum
+    CASE 
+        WHEN TF.U_DocNum IS NULL OR TF.U_DocNum = '' THEN TF.U_Paid
+        ELSE 
+            CASE 
+                WHEN TF.U_Paid IS NULL OR TF.U_Paid = '' THEN TF.U_DocNum 
+                ELSE CONCAT(TF.U_DocNum, ', ', TF.U_Paid)
+            END
+    END AS U_APDocNum
 
     INTO TMP_TARGET
 
