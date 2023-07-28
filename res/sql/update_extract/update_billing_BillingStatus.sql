@@ -36,6 +36,13 @@
     FROM TMP_TARGET TMP
     WHERE TMP.U_BookingNumber = BILLING_EXTRACT.U_BookingNumber
 
+-------->>SUMMARY_EXTRACT
+
+    UPDATE SUMMARY_EXTRACT
+    SET U_BillingStatus = TMP.U_BillingStatus
+    FROM TMP_TARGET TMP
+    WHERE TMP.U_BookingNumber = SUMMARY_EXTRACT.U_BookingNumber
+
 -------->>DELETING TMP_TARGET
 
     DROP TABLE IF EXISTS TMP_TARGET
