@@ -26,6 +26,7 @@ class PricingTab extends APctpWindowTab
             new ColumnDefinition('ISLAND_D', 'ISLAND (DESTINATION)', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
             new ColumnDefinition('IFINTERISLAND', 'if Interisland', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
             new ColumnDefinition('DeliveryStatus', 'DeliveryStatus', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
+            new ColumnDefinition('PODDocNum', 'Doc No. from DTR', ColumnType::TEXT, ColumnViewType::AUTO),
             new ColumnDefinition('TripType', 'Trip Type', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
             new ColumnDefinition('NoOfDrops', 'No Of Drops', ColumnType::INT, ColumnViewType::AUTO),
             new ColumnDefinition('RemarksDTR', 'Remarks', ColumnType::TEXT, ColumnViewType::AUTO),
@@ -133,7 +134,8 @@ class PricingTab extends APctpWindowTab
             'OtherCharges',
             'TotalPayable',
             'TotalAP',
-            'VarTP'
+            'VarTP',
+            'PODDocNum',
         ];
         $this->disableSomeFields = [
             'DisableFieldsForBilling' => [
