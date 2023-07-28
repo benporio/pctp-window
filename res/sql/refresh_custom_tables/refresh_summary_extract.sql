@@ -205,10 +205,10 @@ BEGIN TRY
     TF.U_TotalAP,
     TF.U_VarTP,
     CASE 
-        WHEN TF.U_DocNum IN (NULL, '') THEN TF.U_Paid
+        WHEN TF.U_DocNum IS NULL OR TF.U_DocNum = '' THEN TF.U_Paid
         ELSE 
             CASE 
-                WHEN TF.U_Paid IN (NULL, '') THEN TF.U_DocNum 
+                WHEN TF.U_Paid IS NULL OR TF.U_Paid = '' THEN TF.U_DocNum 
                 ELSE CONCAT(TF.U_DocNum, ', ', TF.U_Paid)
             END
     END AS U_APDocNum,
