@@ -12,7 +12,7 @@ SELECT
     CASE
       WHEN ISNULL(T1.VatStatus,'Y') = 'Y' THEN 'VAT' ELSE 'NONVAT'
     END AS 'U_ClientVatStatus',
-    T0.U_TruckerName,
+    T2.CardName AS U_TruckerName,
     T0.U_SAPTrucker,
     CASE
        WHEN ISNULL(T2.VatStatus,'Y') = 'Y' THEN 'VAT' ELSE 'NONVAT'
@@ -22,6 +22,7 @@ SELECT
     T0.U_ISLAND_D,
     T0.U_IFINTERISLAND,
     T0.U_DeliveryStatus,
+    T0.U_DeliveryDateDTR,
     T0.U_DeliveryDatePOD,
     T0.U_ClientReceivedDate,
     T0.U_ActualDateRec_Intitial,
@@ -136,7 +137,16 @@ SELECT
     tp.U_PaymentReference,
     tp.U_PaymentStatus,
     '' AS U_ProofOfPayment,
-    billing.U_TotalRecClients,
+    ISNULL(pricing.U_GrossClientRates, 0) 
+    + ISNULL(pricing.U_Demurrage, 0)
+    + (ISNULL(pricing.U_AddtlDrop,0) + 
+    ISNULL(pricing.U_BoomTruck,0) + 
+    ISNULL(pricing.U_Manpower,0) + 
+    ISNULL(pricing.U_Backload,0))
+    + ISNULL(billing.U_ActualBilledRate, 0)
+    + ISNULL(billing.U_RateAdjustments, 0)
+    + ISNULL(billing.U_ActualDemurrage, 0)
+    + ISNULL(billing.U_ActualAddCharges, 0) AS U_TotalRecClients,
     ISNULL(CASE
         WHEN ISNULL(T2.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_GrossTruckerRates, 0)
         WHEN ISNULL(T2.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_GrossTruckerRates, 0) / 1.12)
@@ -175,14 +185,31 @@ SELECT
     FROM OINV H
         LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
     WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingNumber) AS U_TotalAR,
-    (SELECT
+    ISNULL((SELECT
         SUM(L.PriceAfVAT)
     FROM OINV H
         LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
-    WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingNumber) - billing.U_TotalRecClients AS U_VarAR,
+    WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingNumber), 0) 
+    - (ISNULL(pricing.U_GrossClientRates, 0) 
+    + ISNULL(pricing.U_Demurrage, 0)
+    + (ISNULL(pricing.U_AddtlDrop,0) + 
+    ISNULL(pricing.U_BoomTruck,0) + 
+    ISNULL(pricing.U_Manpower,0) + 
+    ISNULL(pricing.U_Backload,0))
+    + ISNULL(billing.U_ActualBilledRate, 0)
+    + ISNULL(billing.U_RateAdjustments, 0)
+    + ISNULL(billing.U_ActualDemurrage, 0)
+    + ISNULL(billing.U_ActualAddCharges, 0)) AS U_VarAR,
     TF.U_TotalAP,
     TF.U_VarTP,
-    TF.U_DocNum AS U_APDocNum,
+    CASE 
+        WHEN TF.U_DocNum IS NULL OR TF.U_DocNum = '' THEN TF.U_Paid
+        ELSE 
+            CASE 
+                WHEN TF.U_Paid IS NULL OR TF.U_Paid = '' THEN TF.U_DocNum 
+                ELSE CONCAT(TF.U_DocNum, ', ', TF.U_Paid)
+            END
+    END AS U_APDocNum,
     CAST((
         SELECT DISTINCT
         SUBSTRING(
@@ -202,6 +229,8 @@ SELECT
     CAST(T0.U_DeliveryOrigin as nvarchar(max)) AS U_DeliveryOrigin,
     CAST(T0.U_Destination as nvarchar(max)) AS U_Destination,
     CAST(T0.U_PODStatusDetail as nvarchar(max)) AS U_PODStatusDetail,
+    CAST(T0.U_Remarks as nvarchar(max)) AS U_Remarks,
+    CAST(T0.U_WaybillNo as nvarchar(max)) AS U_WaybillNo,
     CAST((
         SELECT DISTINCT
         SUBSTRING(

@@ -26,7 +26,10 @@ class SummaryTab extends APctpWindowTab
             new ColumnDefinition('ISLAND_D', 'ISLAND (DESTINATION)', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
             new ColumnDefinition('IFINTERISLAND', 'if Interisland', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
             new ColumnDefinition('DeliveryStatus', 'Delivery Status', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
+            new ColumnDefinition('DeliveryDateDTR', 'Delivery Complete Date (PER DTR)', ColumnType::DATE, ColumnViewType::AUTO),
             new ColumnDefinition('DeliveryDatePOD', 'Delivery Complete Date (PER POD)', ColumnType::DATE, ColumnViewType::AUTO),
+            new ColumnDefinition('Remarks', 'Remarks', ColumnType::TEXT, ColumnViewType::AUTO),
+            new ColumnDefinition('WaybillNo', 'Waybill #', ColumnType::TEXT, ColumnViewType::AUTO),
             new ColumnDefinition('PODStatusDetail', 'POD Status (Detail)', ColumnType::TEXT, ColumnViewType::AUTO),
             new ColumnDefinition('ClientReceivedDate', 'Client Received Date', ColumnType::DATE, ColumnViewType::AUTO),
             new ColumnDefinition('ActualDateRec_Intitial', 'Actual date received Soft copy (Initial)', ColumnType::DATE, ColumnViewType::AUTO),
@@ -92,7 +95,8 @@ class SummaryTab extends APctpWindowTab
         ];
         $this->searchableFields = [
             'PODSONum',
-            'InvoiceNo'
+            'InvoiceNo',
+            'PVNo'
         ];
         $this->fieldsFindOptions = [
             'PODSONum' => [
