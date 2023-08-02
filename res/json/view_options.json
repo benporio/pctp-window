@@ -1,5 +1,5 @@
 {
-    "enable_test_logging": false,
+    "enable_test_logging": true,
     "td_background_color": "lightgray",
     "selection_background_color": "rgb(255, 204, 102)",
     "locked_row_background_color": "lightblue",
