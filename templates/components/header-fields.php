@@ -268,6 +268,9 @@ $header = $model->header;
             <div class="col-4">
                 <button type="button" data-pctp-action="find" id="btnfind" class="btn btn-warning btn-rounded" style="color: black; font-weight: bold; width:100%; height:30px; background: linear-gradient(to bottom, #FCF6BA, #BF953F);">FIND</button>
             </div>
+            <div class="col-auto">
+                <span class="findTimeElapsed"></span>
+            </div>
         </div>
         <div class="row d-flex align-items-start clschkptfnodiv" style="margin-top: 275px; vertical-align: middle;">
             <div class="col-12" style="vertical-align: middle;">

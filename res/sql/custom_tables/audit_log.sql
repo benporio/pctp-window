@@ -22,3 +22,4 @@ CREATE TABLE PCTP_WINDOW_JSON_LOG
 --     JSON_VALUE(json_data, '$.relatedNativeQuery') AS related_native_query
 -- FROM PCTP_WINDOW_JSON_LOG
 -- WHERE ref_id = 'I23338655NTM'
+-- ORDER BY time_stamp DESC
