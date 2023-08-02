@@ -1,9 +1,9 @@
 SELECT 
 --COLUMNS
-    Code, U_BookingNumber, U_BookingDate, U_ClientName, U_SAPClient, U_ClientVatStatus, U_TruckerName, U_SAPTrucker, U_TruckerVatStatus, U_VehicleTypeCap, U_ISLAND, U_ISLAND_D, U_IFINTERISLAND, U_DeliveryStatus, U_DeliveryDateDTR,
-    U_DeliveryDatePOD, U_ClientReceivedDate, U_ActualDateRec_Intitial, U_InitialHCRecDate, U_ActualHCRecDate, U_DateReturned, U_VerifiedDateHC, U_PTFNo, U_DateForwardedBT, U_PODSONum, U_GrossClientRates,
-    U_GrossClientRatesTax, U_GrossTruckerRates, U_GrossTruckerRatesTax, U_GrossProfitNet, U_TotalInitialClient, U_TotalInitialTruckers, U_TotalGrossProfit, U_BillingStatus, U_PODStatusPayment, U_PaymentReference,
-    U_PaymentStatus, U_ProofOfPayment, U_TotalRecClients, U_TotalPayable, U_PVNo, U_TotalAR, U_VarAR, U_TotalAP, U_VarTP, U_APDocNum, U_ARDocNum, U_DeliveryOrigin, U_Destination, U_PODStatusDetail, U_Remarks, U_WaybillNo, U_ServiceType,
-    U_InvoiceNo
+    X.Code, X.U_BookingNumber, X.U_BookingDate, X.U_ClientName, X.U_SAPClient, X.U_ClientVatStatus, X.U_TruckerName, X.U_SAPTrucker, X.U_TruckerVatStatus, X.U_VehicleTypeCap, X.U_ISLAND, X.U_ISLAND_D, X.U_IFINTERISLAND, X.U_DeliveryStatus, X.U_DeliveryDateDTR,
+    X.U_DeliveryDatePOD, X.U_ClientReceivedDate, X.U_ActualDateRec_Intitial, X.U_InitialHCRecDate, X.U_ActualHCRecDate, X.U_DateReturned, X.U_VerifiedDateHC, X.U_PTFNo, X.U_DateForwardedBT, X.U_PODSONum, X.U_GrossClientRates,
+    X.U_GrossClientRatesTax, X.U_GrossTruckerRates, X.U_GrossTruckerRatesTax, X.U_GrossProfitNet, X.U_TotalInitialClient, X.U_TotalInitialTruckers, X.U_TotalGrossProfit, X.U_BillingStatus, X.U_PODStatusPayment, X.U_PaymentReference,
+    X.U_PaymentStatus, X.U_ProofOfPayment, X.U_TotalRecClients, X.U_TotalPayable, X.U_PVNo, X.U_TotalAR, X.U_VarAR, X.U_TotalAP, X.U_VarTP, X.U_APDocNum, X.U_ARDocNum, X.U_DeliveryOrigin, X.U_Destination, X.U_PODStatusDetail, X.U_Remarks, X.U_WaybillNo, X.U_ServiceType,
+    X.U_InvoiceNo
 --COLUMNS
-FROM SUMMARY_EXTRACT WITH (NOLOCK) 
+FROM SUMMARY_EXTRACT X WITH (NOLOCK) 
