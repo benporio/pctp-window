@@ -347,7 +347,27 @@ class BillingTab extends APctpWindowTab
         $queries = [];
         $BillingTeam = $_SESSION['SESS_USERCODE'];
         $queries[] = "UPDATE $this->tableName SET U_DocNum = $addedARNum, U_BillingTeam = '$BillingTeam' WHERE Code = '$billingCode'";
+        $rows = [];
+        $dataRow = $this->getRowReference((object)[ 'Code' => $billingCode ]);
+        $rows[] = (object)[
+            'BookingId' => $dataRow->BookingId,
+            'tab' => 'billing',
+            'userInfo' => [
+                'sessionId' => session_id(),
+                'userName' => $_SESSION['SESS_NAME'],
+                'userId' => $_SESSION['SESS_USERID'],
+            ],
+            'old' => [
+                'DocNum' => $dataRow->DocNum,
+                'BillingTeam' => $dataRow->BillingTeam,
+            ],
+            'new' => [
+                'DocNum' => $addedARNum,
+                'BillingTeam' => $BillingTeam,
+            ],
+        ];
         $result = SAPAccessManager::getInstance()->runUpdateNativeQuery($queries);
+        SAPAccessManager::getInstance()->log($rows, [], LogEventType::CREATE_AR);
         $appendedArgs['postProcessResultData'] = $result;
         $rDataRows = [];
         $rDataRows[] = (object)[
@@ -385,10 +405,29 @@ class BillingTab extends APctpWindowTab
         $podTable = $this->settings->tabTables['podTab'];
         $tpTable = $this->settings->tabTables['tpTab'];
         $queries = [];
+        $rows = [];
+        $relatedQueries = [];
         $queries[] = "UPDATE $this->tableName SET U_PODSONum = $addedSONum WHERE Code = '$billingCode'";
+        $rows[] = (object)[
+            'BookingId' => $bookingId,
+            'tab' => 'billing',
+            'userInfo' => [
+                'sessionId' => session_id(),
+                'userName' => $_SESSION['SESS_NAME'],
+                'userId' => $_SESSION['SESS_USERID'],
+            ],
+            'old' => [
+                'PODSONum' => $this->getRowReference((object)[ 'Code' => $billingCode ])->PODSONum,
+            ],
+            'new' => [
+                'PODSONum' => $addedSONum,
+            ],
+        ];
+        $relatedQueries[$bookingId] = "UPDATE $tpTable SET U_PODSONum = $addedSONum WHERE U_BookingId = '$bookingId'";
         // $queries[] = "UPDATE $podTable SET U_DocNum = $addedSONum WHERE Code = '$bookingId'";
         $queries[] = "UPDATE $tpTable SET U_PODSONum = $addedSONum WHERE U_BookingId = '$bookingId'";
         $result = SAPAccessManager::getInstance()->runUpdateNativeQuery($queries);
+        SAPAccessManager::getInstance()->log($rows, $relatedQueries, LogEventType::CREATE_SO);
         $appendedArgs['postProcessResultData'] = $result;
         $rDataRows = [];
         $rDataRows[] = (object)[

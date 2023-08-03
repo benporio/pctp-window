@@ -166,7 +166,6 @@ final class PctpWindowTabHelper
         if ($caller->extractScript !== '') {
             if (str_contains($filterClause, 'billing.')) $filterClause = str_replace('billing.', ' BE.', $filterClause);
             if (str_contains($filterClause, 'BE.') || str_contains($filterClause, 'TF.')) {
-                $script = str_replace('_EXTRACT', '_EXTRACT X', $script);
                 $caller->manipulateJoinTablesInExtract($filterClause, $script);
                 $filterClause = str_replace(['T0.', 'pod.'], ' X.', $filterClause);
             } else {

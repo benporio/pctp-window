@@ -249,30 +249,34 @@ final class SAPAccessManager extends DataAccessProvider
             $relatedQueries = $results['relatedQueries'];
             $result = $this->update(join('; ', $queries));
             if ($result) {
-                $insertValues = [];
-                foreach ($rows as $row) {
-                    if (!isset($row->BookingId)) continue;
-                    $modRow = json_decode(json_encode($row));
-                    $modRow->{'new'} = $modRow->props;
-                    unset($modRow->props);
-                    if ((bool)$relatedQueries) $modRow->{'relatedNativeQuery'} = $relatedQueries[$modRow->BookingId];
-                    $jsonData = json_encode($modRow);
-                    $jsonData = $this->validateStringArgForQuery($jsonData);
-                    $insertValues[] = " ('UPDATE', '$modRow->BookingId', '$jsonData') ";
-                }
-                if ((bool)$insertValues) {
-                    $insertValuesStr = join(',', $insertValues);
-                    $this->insert(
-                    "   INSERT INTO PCTP_WINDOW_JSON_LOG
-                        (event_type, ref_id, json_data)
-                        VALUES
-                        $insertValuesStr;
-                    ");
-                }
+                $this->log($rows, $relatedQueries);
             }
             return $result;
         }
         return false;
+    }
+
+    public function log(array $rows, array $relatedQueries = [], LogEventType $type = LogEventType::UPDATE) {
+        $insertValues = [];
+        foreach ($rows as $row) {
+            if (!isset($row->BookingId) || !isset($row->old)) continue;
+            $modRow = json_decode(json_encode($row));
+            if (isset($modRow->props)) $modRow->{'new'} = $modRow->props;
+            unset($modRow->props);
+            if ((bool)$relatedQueries) $modRow->{'relatedNativeQuery'} = $relatedQueries[$modRow->BookingId];
+            $jsonData = json_encode($modRow);
+            $jsonData = $this->validateStringArgForQuery($jsonData);
+            $insertValues[] = " ('$type->value', '$modRow->BookingId', '$jsonData') ";
+        }
+        if ((bool)$insertValues) {
+            $insertValuesStr = join(',', $insertValues);
+            $this->insert(
+            "   INSERT INTO PCTP_WINDOW_JSON_LOG
+                (event_type, ref_id, json_data)
+                VALUES
+                $insertValuesStr;
+            ");
+        }
     }
 
     private function directUpdateRelatedTable(APctpWindowTab $caller, array $queries, array $rows, RelatedTable ...$relatedTables): array {
