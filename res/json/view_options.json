@@ -16,7 +16,5 @@
         "enabled": true,
         "invalid_value_return_0": true
     },
-    "disable_checkbox_on_locked_data_row": true,
-    "enable_find_timer_display": true,
-    "find_timer_display_duration_ms": 10000
+    "disable_checkbox_on_locked_data_row": true
 }

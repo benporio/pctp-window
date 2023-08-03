@@ -1,12 +1,12 @@
 SELECT 
 --COLUMNS
-    X.DisableTableRow, X.U_BookingNumber, X.DisableSomeFields, X.Code, X.U_BookingId, X.U_BookingDate, X.U_PODNum, X.U_PODSONum, X.U_ClientName, X.U_TruckerName, X.U_TruckerSAP, X.U_PlateNumber, X.U_VehicleTypeCap, X.U_ISLAND, X.U_ISLAND_D, 
-    X.U_IFINTERISLAND, X.U_DeliveryStatus, X.U_DeliveryDatePOD, X.U_NoOfDrops, X.U_TripType, X.U_Receivedby, X.U_ClientReceivedDate, X.U_ActualDateRec_Intitial, X.U_ActualHCRecDate, X.U_DateReturned, X.U_PODinCharge, X.U_VerifiedDateHC, 
-    X.U_TPStatus, X.U_Aging, X.U_GrossTruckerRates, X.U_RateBasis, X.U_GrossTruckerRatesN, X.U_TaxType, X.U_Demurrage, X.U_AddtlDrop, X.U_BoomTruck, X.U_BoomTruck2, X.U_Manpower, X.U_BackLoad, X.U_Addtlcharges, X.U_DemurrageN, 
-    X.U_AddtlChargesN, X.U_ActualRates, X.U_RateAdjustments, X.U_ActualDemurrage, X.U_ActualCharges, X.U_OtherCharges, X.WaivedDaysx, X.U_ClientSubOverdue, X.U_ClientPenaltyCalc, X.xHolidayOrWeekend, X.U_InteluckPenaltyCalc, 
-    X.U_InitialHCRecDate, X.U_DeliveryDateDTR, X.U_TotalInitialTruckers, X.U_LostPenaltyCalc, X.U_TotalSubPenalty, X.U_TotalPenaltyWaived, X.U_TotalPenalty, X.U_TotalPayable, X.U_EWT2307, X.U_TotalPayableRec, X.U_PVNo, X.U_ORRefNo, X.U_TPincharge, 
-    X.U_CAandDP, X.U_Interest, X.U_OtherDeductions, X.U_TOTALDEDUCTIONS, X.U_REMARKS1, X.U_TotalAP, X.U_VarTP, X.U_APInvLineNum, X.U_PercPenaltyCharge, X.ExtraDays, X.U_DocNum, X.U_Paid, X.U_OtherPODDoc, X.U_DeliveryOrigin, X.U_Remarks2, 
-    X.U_RemarksPOD, X.U_GroupProject, X.U_Destination, X.U_Remarks, X.U_Attachment, X.U_TripTicketNo, X.U_WaybillNo, X.U_ShipmentManifestNo, X.U_DeliveryReceiptNo, X.U_SeriesNo, X.U_ActualPaymentDate, X.U_PaymentReference, 
-    X.U_PaymentStatus
+    DisableTableRow, U_BookingNumber, DisableSomeFields, Code, U_BookingId, U_BookingDate, U_PODNum, U_PODSONum, U_ClientName, U_TruckerName, U_TruckerSAP, U_PlateNumber, U_VehicleTypeCap, U_ISLAND, U_ISLAND_D, 
+    U_IFINTERISLAND, U_DeliveryStatus, U_DeliveryDatePOD, U_NoOfDrops, U_TripType, U_Receivedby, U_ClientReceivedDate, U_ActualDateRec_Intitial, U_ActualHCRecDate, U_DateReturned, U_PODinCharge, U_VerifiedDateHC, 
+    U_TPStatus, U_Aging, U_GrossTruckerRates, U_RateBasis, U_GrossTruckerRatesN, U_TaxType, U_Demurrage, U_AddtlDrop, U_BoomTruck, U_BoomTruck2, U_Manpower, U_BackLoad, U_Addtlcharges, U_DemurrageN, 
+    U_AddtlChargesN, U_ActualRates, U_RateAdjustments, U_ActualDemurrage, U_ActualCharges, U_OtherCharges, WaivedDaysx, U_ClientSubOverdue, U_ClientPenaltyCalc, xHolidayOrWeekend, U_InteluckPenaltyCalc, 
+    U_InitialHCRecDate, U_DeliveryDateDTR, U_TotalInitialTruckers, U_LostPenaltyCalc, U_TotalSubPenalty, U_TotalPenaltyWaived, U_TotalPenalty, U_TotalPayable, U_EWT2307, U_TotalPayableRec, U_PVNo, U_ORRefNo, U_TPincharge, 
+    U_CAandDP, U_Interest, U_OtherDeductions, U_TOTALDEDUCTIONS, U_REMARKS1, U_TotalAP, U_VarTP, U_APInvLineNum, U_PercPenaltyCharge, ExtraDays, U_DocNum, U_Paid, U_OtherPODDoc, U_DeliveryOrigin, U_Remarks2, 
+    U_RemarksPOD, U_GroupProject, U_Destination, U_Remarks, U_Attachment, U_TripTicketNo, U_WaybillNo, U_ShipmentManifestNo, U_DeliveryReceiptNo, U_SeriesNo, U_ActualPaymentDate, U_PaymentReference, 
+    U_PaymentStatus
 --COLUMNS
-FROM TP_EXTRACT X  WITH (NOLOCK) 
+FROM TP_EXTRACT  WITH (NOLOCK) 

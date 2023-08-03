@@ -256,8 +256,6 @@ abstract class APctpWindowTab extends ASerializableClass
             $bookingIdsStr = '';
             $bookingIdColumn = '';
             $bookingIds = [];
-            $doFetchFromExtract = isset($this->settings->config['enable_fetch_from_extract']) && $this->settings->config['enable_fetch_from_extract'];
-            $doRefreshExtractWhenFetching = !(isset($this->settings->config['disable_refresh_extract_when_fetching']) && $this->settings->config['disable_refresh_extract_when_fetching']);
             if ($this->extractScript !== '') {
                 $bookingIdScript = $this->extractScript;
                 $hasAppendedCustomAlias = false;
@@ -266,6 +264,7 @@ abstract class APctpWindowTab extends ASerializableClass
                 if (str_contains($filterClause, 'BE.') || str_contains($filterClause, 'TF.')) {
                     $hasAppendedCustomAlias = true;
                     $appendedCustomAlias = 'X';
+                    $bookingIdScript = str_replace('_EXTRACT', '_EXTRACT X', $bookingIdScript);
                     $this->manipulateJoinTablesInExtract($filterClause, $bookingIdScript);
                     $newFilterClause = str_replace(['T0.', 'pod.'], ' X.', $filterClause);
                     $newOrderClause = str_replace(['T0.', 'pod.'], ' X.', $orderClause);
@@ -274,38 +273,34 @@ abstract class APctpWindowTab extends ASerializableClass
                     $newOrderClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $orderClause);
                 }
                 $bookingIdColumn = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BookingId'), $hasAppendedCustomAlias ? $appendedCustomAlias : '', $enableFieldsFindOptions);
-                if ($doFetchFromExtract) {
-                    $preScript = "$bookingIdScript \n$newFilterClause \n$newOrderClause \n$offsetClause";
-                    $partialTableRows = SAPAccessManager::getInstance()->getRows($preScript);
-                    if ($doPreFetchProcess && $doRefreshExtractWhenFetching) $this->preFetchProcess(array_map(fn ($z) => (object)[ 'BookingId' => isset($z->U_BookingId) ? $z->U_BookingId : $z->U_BookingNumber], $partialTableRows));
-                } else {
-                    $bookingIdScript = preg_replace('/--COLUMNS[\s\S]+--COLUMNS/', "$bookingIdColumn AS BookingId", $bookingIdScript);
-                    $preScript = "$bookingIdScript \n$newFilterClause \n$newOrderClause \n$offsetClause";
-                    $bookingIds = SAPAccessManager::getInstance()->getRows($preScript);
-                    $bookingIdsStr = "'" . join("','", array_map(fn ($z) => $z->BookingId, $bookingIds)) . "'";
-                }
+                $bookingIdScript = preg_replace('/--COLUMNS[\s\S]+--COLUMNS/', "$bookingIdColumn AS BookingId", $bookingIdScript);
+                $preScript = "$bookingIdScript \n$newFilterClause \n$newOrderClause \n$offsetClause";
+                $bookingIds = SAPAccessManager::getInstance()->getRows($preScript);
+                $bookingIdsStr = "'" . join("','", array_map(fn ($z) => $z->BookingId, $bookingIds)) . "'";
             } else {
                 $bookingIdColumn = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BookingId'), $tableAlias, $enableFieldsFindOptions);
                 $bookingIdScript = preg_replace('/--COLUMNS[\s\S]+--COLUMNS/', "$bookingIdColumn AS BookingId", $script);
+                // $bookingIdScript = preg_replace('/--JOINS[\s\S]+--JOINS/', '', $bookingIdScript);
                 $preScript = "$bookingIdScript \n$filterClause \n$orderClause \n$offsetClause";
                 $bookingIds = SAPAccessManager::getInstance()->getRows($preScript);
                 $bookingIdsStr = "'" . join("','", array_map(fn ($z) => $z->BookingId, $bookingIds)) . "'";
             }
-            if (!(bool)$partialTableRows) {
-                if ($this->methodTrack === 'getTableRowsDataWithHeaders' && $this->extractScript !== '') {
-                    $bookingIdColumn = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BookingId'), '', $enableFieldsFindOptions);
-                    $filterClause = 'WHERE ' . $bookingIdColumn . " IN ($bookingIdsStr) ";
-                    $script = $this->extractScript;
-                    $orderClause = str_replace(['T0.', 'pod.'], '', $orderClause);
-                } else {
-                    $bookingIdColumn = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BookingId'), $tableAlias, $enableFieldsFindOptions);
-                    $filterClause = 'WHERE ' . $bookingIdColumn . " IN ($bookingIdsStr) ";
-                }
-                $finalScript = "$script \n$filterClause \n$orderClause";
-                if ($doPreFetchProcess && $doRefreshExtractWhenFetching) $this->preFetchProcess($bookingIds);
-                if ($_SERVER['REMOTE_ADDR'] === '::1') file_put_contents(__DIR__ . '/../sql/tmp/debug.sql', $finalScript);
-                $partialTableRows = SAPAccessManager::getInstance()->getRows($finalScript);
+            if ($this->methodTrack === 'getTableRowsDataWithHeaders' && $this->extractScript !== '') {
+                $bookingIdColumn = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BookingId'), '', $enableFieldsFindOptions);
+                $filterClause = 'WHERE ' . $bookingIdColumn . " IN ($bookingIdsStr) ";
+                $script = $this->extractScript;
+                $orderClause = str_replace(['T0.', 'pod.'], '', $orderClause);
+            } else {
+                $bookingIdColumn = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BookingId'), $tableAlias, $enableFieldsFindOptions);
+                $filterClause = 'WHERE ' . $bookingIdColumn . " IN ($bookingIdsStr) ";
+                // $bookingIdFilterClause = " $bookingIdColumn IN ($bookingIdsStr) ";
+                // $filterClauseChunks[] = $bookingIdFilterClause;
+                // $filterClause = 'WHERE ' . join(" \r\nAND ", $filterClauseChunks);
             }
+            $finalScript = "$script \n$filterClause \n$orderClause";
+            if ($doPreFetchProcess) $this->preFetchProcess($bookingIds);
+            if ($_SERVER['REMOTE_ADDR'] === '::1') file_put_contents(__DIR__ . '/../sql/tmp/debug.sql', $finalScript);
+            $partialTableRows = SAPAccessManager::getInstance()->getRows($finalScript);
         }
 
         $this->tableRows = [];

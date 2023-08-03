@@ -45,12 +45,12 @@ class PctpWindowSettings extends ASerializableClass
         $this->viewOptions = (array)json_decode(file_get_contents(__DIR__ . '/../json/view_options.json'));
         $this->config = (array)json_decode(file_get_contents(__DIR__ . '/../json/config.json'));
         $this->preFetchRefreshScripts = [
-            file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_all.sql'),
-            // file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_billing_extract.sql'),
-            // file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_tp_extract.sql'),
-            // file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_pod_extract.sql'),
-            // file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_summary_extract.sql'),
-            // file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_pricing_extract.sql'),
+            file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_tp_formula.sql'),
+            file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_billing_extract.sql'),
+            file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_tp_extract.sql'),
+            file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_pod_extract.sql'),
+            file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_summary_extract.sql'),
+            file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_pricing_extract.sql'),
         ];
         $this->queries = [
             'deliveryStatusOptions' => 'SELECT * FROM [@DELIVERYSTATUS] WITH (NOLOCK)',

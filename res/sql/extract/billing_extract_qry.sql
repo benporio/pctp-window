@@ -1,11 +1,11 @@
 SELECT 
 --COLUMNS
-    X.U_BookingNumber, X.DisableTableRow, X.DisableSomeFields, X.Code, X.U_BookingId, X.U_BookingDate, X.U_PODNum, X.U_PODSONum, X.U_CustomerName, X.U_SAPClient, X.U_PlateNumber, X.U_VehicleTypeCap, X.U_DeliveryStatus, X.U_DeliveryDatePOD,
-    X.U_NoOfDrops, X.U_TripType, X.U_ClientReceivedDate, X.U_ActualHCRecDate, X.U_PODinCharge, X.U_VerifiedDateHC, X.U_PTFNo, X.U_DateForwardedBT, X.U_BillingDeadline, X.U_BillingStatus, X.U_BillingTeam, X.U_GrossInitialRate, X.U_Demurrage,
-    X.U_AddCharges, X.U_ActualBilledRate, X.U_RateAdjustments, X.U_ActualDemurrage, X.U_ActualAddCharges, X.U_TotalRecClients, X.U_CheckingTotalBilled, X.U_Checking, X.U_CWT2307, X.U_SOBNumber, X.U_ForwardLoad, X.U_BackLoad,
-    X.U_TypeOfAccessorial, X.U_TimeInEmptyDem, X.U_TimeOutEmptyDem, X.U_VerifiedEmptyDem, X.U_TimeInLoadedDem, X.U_TimeOutLoadedDem, X.U_VerifiedLoadedDem, X.U_TimeInAdvLoading, X.U_DayOfTheWeek, X.U_TimeIn, X.U_TimeOut,
-    X.U_TotalExceed, X.U_ODOIn, X.U_ODOOut, X.U_TotalUsage, X.U_SOLineNum, X.U_ARInvLineNum, X.ExtraDays, X.U_TotalAR, X.U_VarAR, X.U_ServiceType, X.U_DocNum, X.U_InvoiceNo, X.U_DeliveryReceiptNo, X.U_SeriesNo, X.U_GroupProject, X.U_DeliveryOrigin,
-    X.U_Destination, X.U_OtherPODDoc, X.U_RemarksPOD, X.U_PODStatusDetail, X.U_BTRemarks, X.U_DestinationClient, X.U_Remarks, X.U_Attachment, X.U_SI_DRNo, X.U_TripTicketNo, X.U_WaybillNo, X.U_ShipmentManifestNo, X.U_OutletNo, X.U_CBM,
-    X.U_DeliveryMode, X.U_SourceWhse, X.U_SONo, X.U_NameCustomer, X.U_CategoryDR, X.U_IDNumber, X.U_Status, X.U_TotalInvAmount
+    U_BookingNumber, DisableTableRow, DisableSomeFields, Code, U_BookingId, U_BookingDate, U_PODNum, U_PODSONum, U_CustomerName, U_SAPClient, U_PlateNumber, U_VehicleTypeCap, U_DeliveryStatus, U_DeliveryDatePOD,
+    U_NoOfDrops, U_TripType, U_ClientReceivedDate, U_ActualHCRecDate, U_PODinCharge, U_VerifiedDateHC, U_PTFNo, U_DateForwardedBT, U_BillingDeadline, U_BillingStatus, U_BillingTeam, U_GrossInitialRate, U_Demurrage,
+    U_AddCharges, U_ActualBilledRate, U_RateAdjustments, U_ActualDemurrage, U_ActualAddCharges, U_TotalRecClients, U_CheckingTotalBilled, U_Checking, U_CWT2307, U_SOBNumber, U_ForwardLoad, U_BackLoad,
+    U_TypeOfAccessorial, U_TimeInEmptyDem, U_TimeOutEmptyDem, U_VerifiedEmptyDem, U_TimeInLoadedDem, U_TimeOutLoadedDem, U_VerifiedLoadedDem, U_TimeInAdvLoading, U_DayOfTheWeek, U_TimeIn, U_TimeOut,
+    U_TotalExceed, U_ODOIn, U_ODOOut, U_TotalUsage, U_SOLineNum, U_ARInvLineNum, ExtraDays, U_TotalAR, U_VarAR, U_ServiceType, U_DocNum, U_InvoiceNo, U_DeliveryReceiptNo, U_SeriesNo, U_GroupProject, U_DeliveryOrigin,
+    U_Destination, U_OtherPODDoc, U_RemarksPOD, U_PODStatusDetail, U_BTRemarks, U_DestinationClient, U_Remarks, U_Attachment, U_SI_DRNo, U_TripTicketNo, U_WaybillNo, U_ShipmentManifestNo, U_OutletNo, U_CBM,
+    U_DeliveryMode, U_SourceWhse, U_SONo, U_NameCustomer, U_CategoryDR, U_IDNumber, U_Status, U_TotalInvAmount
 --COLUMNS
-FROM BILLING_EXTRACT X WITH (NOLOCK) 
+FROM BILLING_EXTRACT WITH (NOLOCK) 
