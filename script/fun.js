@@ -23,19 +23,15 @@ class Timer {
     constructor() {
         this.#startTime = null;
     }
-    isStarted() {
-        return this.#startTime !== null;
-    }
     start() {
         this.#startTime = new Date();
     }
-    stop(doIncludeSeconds = false) {
+    stop() {
         const endTime = new Date();
         const timeDiffInMin = ((endTime - this.#startTime) / 1000) / 60;
         const timeDiffInSec = ((endTime - this.#startTime) / 1000);
-        this.#startTime = null;
         return Math.round(timeDiffInMin) === 0 ? `${Math.round(timeDiffInSec)} sec`
-            : `${Math.round(timeDiffInMin)} min ${doIncludeSeconds ? `${Math.round(timeDiffInSec)%60} sec` : ''}`
+            : `${Math.round(timeDiffInMin)} min`
     }
 }
 
@@ -442,8 +438,6 @@ const initialize = (afterInitEvent) => {
     }
 }
 
-const findTimer = new Timer();
-
 // Ajax call to execute controller's public methods
 const callAction = async (actionName, arg) => {
     p.log(p.modifiedRows)
@@ -457,8 +451,6 @@ const callAction = async (actionName, arg) => {
     p.preActionCallBacks.run(actionName)
     switch (actionName) {
         case 'find':
-            $('span.findTimeElapsed').html('');
-            findTimer.start();
             setScreenLoading(true);
             data['header'] = p.parseHeader();
             p.log('data-pctp-passed', data)
@@ -1753,10 +1745,6 @@ class PctpWindowView extends AbsWebSocketCaller {
                     }
                 ],
                 preDrawCallback: function (settings) {
-                    if (!findTimer.isStarted()) {
-                        $('span.findTimeElapsed').html('');
-                        findTimer.start();
-                    }
                     p.rowIndexCodePairs[tabName] = [];
                     setScreenLoading(true);
                     if (!!p.realtimeDataRowController) {
@@ -1776,16 +1764,6 @@ class PctpWindowView extends AbsWebSocketCaller {
                                 ids: p.realtimeDataRowController.dataRowRefManager[tabName].map(item => item.code)
                             })
                         }
-                    }
-                    if (findTimer.isStarted() && !!p.viewOptions.enable_find_timer_display) {
-                        const timerInfo = findTimer.stop(true);
-                        $('span.findTimeElapsed').html(`Search took ${timerInfo} (${tabName.toUpperCase()} - ${settings.json.data.length} displayed rows)`);
-                        $('#btnfind').attr('title', `Recent search took ${timerInfo} (${tabName.toUpperCase()} - ${settings.json.data.length} displayed rows)`)
-                        setTimeout(() => {
-                            $('span.findTimeElapsed').html('');
-                        }, p.viewOptions.find_timer_display_duration_ms)
-                    } else {
-                        p.log(`Search took ${findTimer.stop(true)} (${tabName.toUpperCase()} - ${settings.json.data.length} displayed rows)`)
                     }
                     setScreenLoading(false, true);
                 }
