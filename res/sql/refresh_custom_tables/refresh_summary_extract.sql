@@ -285,16 +285,16 @@ FROM [dbo].[@PCTP_POD] T0  WITH (NOLOCK)
     LEFT JOIN TP_FORMULA TF ON TF.U_BookingId = T0.U_BookingNumber
     -- LEFT JOIN BILLING_EXTRACT BE ON BE.U_BookingNumber = T0.U_BookingNumber
 --JOINS
-WHERE T0.U_BookingNumber IN ($bookingIds)
+WHERE T0.U_BookingNumber IN ($bookingIds);
 
-    DELETE FROM SUMMARY_EXTRACT WHERE U_BookingNumber IN ($bookingIds)
+    DELETE FROM SUMMARY_EXTRACT WHERE U_BookingNumber IN ($bookingIds);
 
     INSERT INTO SUMMARY_EXTRACT
 SELECT
     *
-FROM TMP_UPDATE_SUMMARY_EXTRACT_$serial
+FROM TMP_UPDATE_SUMMARY_EXTRACT_$serial;
 
-    DROP TABLE IF EXISTS TMP_UPDATE_SUMMARY_EXTRACT_$serial
+    DROP TABLE IF EXISTS TMP_UPDATE_SUMMARY_EXTRACT_$serial;
 
 --     PRINT 'Last Statement in the TRY block'
 --     COMMIT TRAN

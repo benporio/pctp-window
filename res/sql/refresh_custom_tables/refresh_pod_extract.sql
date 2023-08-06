@@ -421,16 +421,16 @@
         -- LEFT JOIN (SELECT DocEntry, MIN(ItemCode) AS ItemCode FROM INV1 GROUP BY DocEntry, ItemCode) ARLine ON ARLine.ItemCode = T0.U_BookingNumber
         -- LEFT JOIN (SELECT DocEntry, MIN(U_BillingStatus) AS U_BillingStatus, MIN(DocNum) AS DocNum FROM OINV GROUP BY DocEntry) ARHeader ON ARHeader.DocEntry = ARLine.DocEntry
         LEFT JOIN TP_FORMULA TF ON TF.U_BookingId = T0.U_BookingNumber
-    WHERE T0.U_BookingNumber IN ($bookingIds)
+    WHERE T0.U_BookingNumber IN ($bookingIds);
 
-    DELETE FROM POD_EXTRACT WHERE U_BookingNumber IN ($bookingIds)
+    DELETE FROM POD_EXTRACT WHERE U_BookingNumber IN ($bookingIds);
 
     INSERT INTO POD_EXTRACT
     SELECT
         *
-    FROM TMP_UPDATE_POD_EXTRACT_$serial
+    FROM TMP_UPDATE_POD_EXTRACT_$serial;
 
-    DROP TABLE IF EXISTS TMP_UPDATE_POD_EXTRACT_$serial
+    DROP TABLE IF EXISTS TMP_UPDATE_POD_EXTRACT_$serial;
 
 --     PRINT 'Last Statement in the TRY block'
 --     COMMIT TRAN

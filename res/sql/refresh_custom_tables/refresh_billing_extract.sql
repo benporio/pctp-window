@@ -253,16 +253,16 @@
         -- GROUP BY DocEntry) ARHeader ON ARHeader.DocEntry = ARLine.DocEntry
         LEFT JOIN TP_FORMULA TF ON TF.U_BookingId = T0.U_BookingId
     --JOINS
-    WHERE T0.U_BookingId IN ($bookingIds)
+    WHERE T0.U_BookingId IN ($bookingIds);
 
-    DELETE FROM BILLING_EXTRACT WHERE U_BookingNumber IN ($bookingIds)
+    DELETE FROM BILLING_EXTRACT WHERE U_BookingNumber IN ($bookingIds);
 
     INSERT INTO BILLING_EXTRACT
     SELECT
         *
-    FROM TMP_UPDATE_BILLING_EXTRACT_$serial
+    FROM TMP_UPDATE_BILLING_EXTRACT_$serial;
 
-    DROP TABLE IF EXISTS TMP_UPDATE_BILLING_EXTRACT_$serial
+    DROP TABLE IF EXISTS TMP_UPDATE_BILLING_EXTRACT_$serial;
 
 --     PRINT 'Last Statement in the TRY block'
 --     COMMIT TRAN

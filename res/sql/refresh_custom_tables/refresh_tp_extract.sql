@@ -245,16 +245,16 @@ FROM [dbo].[@PCTP_TP] T0  WITH (NOLOCK)
     LEFT JOIN OCTG T6 ON T5.GroupNum = T6.GroupNum
     LEFT JOIN TP_FORMULA TF ON TF.U_BookingId = T0.U_BookingId
 --JOINS
-    WHERE T0.U_BookingId IN ($bookingIds)
+    WHERE T0.U_BookingId IN ($bookingIds);
 
-    DELETE FROM TP_EXTRACT WHERE U_BookingNumber IN ($bookingIds)
+    DELETE FROM TP_EXTRACT WHERE U_BookingNumber IN ($bookingIds);
 
     INSERT INTO TP_EXTRACT
     SELECT
         *
-    FROM TMP_UPDATE_TP_EXTRACT_$serial
+    FROM TMP_UPDATE_TP_EXTRACT_$serial;
 
-    DROP TABLE IF EXISTS TMP_UPDATE_TP_EXTRACT_$serial
+    DROP TABLE IF EXISTS TMP_UPDATE_TP_EXTRACT_$serial;
 
 --     PRINT 'Last Statement in the TRY block'
 --     COMMIT TRAN
