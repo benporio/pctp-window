@@ -1,15 +1,26 @@
-PRINT 'BEFORE TRY'
-BEGIN TRY
-    BEGIN TRAN
-    PRINT 'First Statement in the TRY block'
+PRINT 'CREATING TARGETS'
+    
+    DROP TABLE IF EXISTS TMP_TARGET
+    SELECT
+	    T0.U_BookingNumber
+    INTO TMP_TARGET
+    FROM [dbo].[@PCTP_POD] T0  WITH (NOLOCK)
+    WHERE T0.U_BookingNumber IN ($bookingIds);
+
+-- PRINT 'BEFORE TRY'
+-- BEGIN TRY
+--     BEGIN TRAN
+--     PRINT 'First Statement in the TRY block'
     
     UPDATE [@FirstratesTP] 
     SET U_Amount = NULL
-    WHERE U_Amount = 'NaN' AND U_BN IN ($bookingIds)
+    WHERE U_Amount = 'NaN' AND U_BN IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK));
+
 
     UPDATE [@FirstratesTP] 
     SET U_AddlAmount = NULL
-    WHERE U_AddlAmount = 'NaN' AND U_BN IN ($bookingIds)
+    WHERE U_AddlAmount = 'NaN' AND U_BN IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK));
+
 
     DROP TABLE IF EXISTS TMP_UPDATE_TP_FORMULA_$serial
     SELECT
@@ -2805,25 +2816,30 @@ BEGIN TRY
         LEFT JOIN OCRD T4 ON pod.U_SAPClient = T4.CardCode
         LEFT JOIN [dbo].[@PCTP_PRICING] pricing ON T0.U_BookingId = pricing.U_BookingId
         LEFT JOIN OCRD trucker ON pod.U_SAPTrucker = trucker.CardCode
-    WHERE T0.U_BookingId IN ($bookingIds)
+    WHERE T0.U_BookingId IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK));
 
-    DELETE FROM TP_FORMULA WHERE U_BookingId IN ($bookingIds)
+
+    DELETE FROM TP_FORMULA WHERE U_BookingId IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK));
+
 
     INSERT INTO TP_FORMULA
     SELECT
         *
-    FROM TMP_UPDATE_TP_FORMULA_$serial
+    FROM TMP_UPDATE_TP_FORMULA_$serial;
 
-    DROP TABLE IF EXISTS TMP_UPDATE_TP_FORMULA_$serial
 
-    PRINT 'Last Statement in the TRY block'
-    COMMIT TRAN
-END TRY
-BEGIN CATCH
-    PRINT 'In CATCH Block'
-    IF(@@TRANCOUNT > 0)
-        ROLLBACK TRAN;
+    DROP TABLE IF EXISTS TMP_UPDATE_TP_FORMULA_$serial;
 
-    THROW; -- raise error to the client
-END CATCH
-PRINT 'After END CATCH'
+
+DROP TABLE IF EXISTS TMP_TARGET;
+--     PRINT 'Last Statement in the TRY block'
+--     COMMIT TRAN
+-- END TRY
+-- BEGIN CATCH
+--     PRINT 'In CATCH Block'
+--     IF(@@TRANCOUNT > 0)
+--         ROLLBACK TRAN;
+
+--     THROW; -- raise error to the client
+-- END CATCH
+-- PRINT 'After END CATCH'

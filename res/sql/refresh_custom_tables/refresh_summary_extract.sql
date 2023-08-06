@@ -1,7 +1,16 @@
-PRINT 'BEFORE TRY'
-BEGIN TRY
-    BEGIN TRAN
-    PRINT 'First Statement in the TRY block'
+PRINT 'CREATING TARGETS'
+    
+    DROP TABLE IF EXISTS TMP_TARGET
+    SELECT
+	    T0.U_BookingNumber
+    INTO TMP_TARGET
+    FROM [dbo].[@PCTP_POD] T0  WITH (NOLOCK)
+    WHERE T0.U_BookingNumber IN ($bookingIds);
+
+-- PRINT 'BEFORE TRY'
+-- BEGIN TRY
+--     BEGIN TRAN
+--     PRINT 'First Statement in the TRY block'
     
     DROP TABLE IF EXISTS TMP_UPDATE_SUMMARY_EXTRACT_$serial
     SELECT
@@ -285,25 +294,30 @@ FROM [dbo].[@PCTP_POD] T0  WITH (NOLOCK)
     LEFT JOIN TP_FORMULA TF ON TF.U_BookingId = T0.U_BookingNumber
     -- LEFT JOIN BILLING_EXTRACT BE ON BE.U_BookingNumber = T0.U_BookingNumber
 --JOINS
-WHERE T0.U_BookingNumber IN ($bookingIds)
+WHERE T0.U_BookingNumber IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK));
 
-    DELETE FROM SUMMARY_EXTRACT WHERE U_BookingNumber IN ($bookingIds)
+
+    DELETE FROM SUMMARY_EXTRACT WHERE U_BookingNumber IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK));
+
 
     INSERT INTO SUMMARY_EXTRACT
 SELECT
     *
-FROM TMP_UPDATE_SUMMARY_EXTRACT_$serial
+FROM TMP_UPDATE_SUMMARY_EXTRACT_$serial;
 
-    DROP TABLE IF EXISTS TMP_UPDATE_SUMMARY_EXTRACT_$serial
 
-    PRINT 'Last Statement in the TRY block'
-    COMMIT TRAN
-END TRY
-BEGIN CATCH
-    PRINT 'In CATCH Block'
-    IF(@@TRANCOUNT > 0)
-        ROLLBACK TRAN;
+    DROP TABLE IF EXISTS TMP_UPDATE_SUMMARY_EXTRACT_$serial;
 
-    THROW; -- raise error to the client
-END CATCH
-PRINT 'After END CATCH'
+
+DROP TABLE IF EXISTS TMP_TARGET;
+--     PRINT 'Last Statement in the TRY block'
+--     COMMIT TRAN
+-- END TRY
+-- BEGIN CATCH
+--     PRINT 'In CATCH Block'
+--     IF(@@TRANCOUNT > 0)
+--         ROLLBACK TRAN;
+
+--     THROW; -- raise error to the client
+-- END CATCH
+-- PRINT 'After END CATCH'

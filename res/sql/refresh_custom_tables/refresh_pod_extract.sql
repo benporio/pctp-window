@@ -1,7 +1,16 @@
-PRINT 'BEFORE TRY'
-BEGIN TRY
-    BEGIN TRAN
-    PRINT 'First Statement in the TRY block'
+PRINT 'CREATING TARGETS'
+    
+    DROP TABLE IF EXISTS TMP_TARGET
+    SELECT
+	    T0.U_BookingNumber
+    INTO TMP_TARGET
+    FROM [dbo].[@PCTP_POD] T0  WITH (NOLOCK)
+    WHERE T0.U_BookingNumber IN ($bookingIds)
+
+-- PRINT 'BEFORE TRY'
+-- BEGIN TRY
+--     BEGIN TRAN
+--     PRINT 'First Statement in the TRY block'
     
     DROP TABLE IF EXISTS TMP_UPDATE_POD_EXTRACT_$serial
     SELECT
@@ -421,25 +430,30 @@ BEGIN TRY
         -- LEFT JOIN (SELECT DocEntry, MIN(ItemCode) AS ItemCode FROM INV1 GROUP BY DocEntry, ItemCode) ARLine ON ARLine.ItemCode = T0.U_BookingNumber
         -- LEFT JOIN (SELECT DocEntry, MIN(U_BillingStatus) AS U_BillingStatus, MIN(DocNum) AS DocNum FROM OINV GROUP BY DocEntry) ARHeader ON ARHeader.DocEntry = ARLine.DocEntry
         LEFT JOIN TP_FORMULA TF ON TF.U_BookingId = T0.U_BookingNumber
-    WHERE T0.U_BookingNumber IN ($bookingIds)
+    WHERE T0.U_BookingNumber IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK))
 
-    DELETE FROM POD_EXTRACT WHERE U_BookingNumber IN ($bookingIds)
+
+    DELETE FROM POD_EXTRACT WHERE U_BookingNumber IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK))
+
 
     INSERT INTO POD_EXTRACT
     SELECT
         *
     FROM TMP_UPDATE_POD_EXTRACT_$serial
 
+
     DROP TABLE IF EXISTS TMP_UPDATE_POD_EXTRACT_$serial
 
-    PRINT 'Last Statement in the TRY block'
-    COMMIT TRAN
-END TRY
-BEGIN CATCH
-    PRINT 'In CATCH Block'
-    IF(@@TRANCOUNT > 0)
-        ROLLBACK TRAN;
 
-    THROW; -- raise error to the client
-END CATCH
-PRINT 'After END CATCH'
+DROP TABLE IF EXISTS TMP_TARGET;
+--     PRINT 'Last Statement in the TRY block'
+--     COMMIT TRAN
+-- END TRY
+-- BEGIN CATCH
+--     PRINT 'In CATCH Block'
+--     IF(@@TRANCOUNT > 0)
+--         ROLLBACK TRAN;
+
+--     THROW; -- raise error to the client
+-- END CATCH
+-- PRINT 'After END CATCH'

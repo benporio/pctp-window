@@ -507,11 +507,11 @@ abstract class APctpWindowTab extends ASerializableClass
         return $filterClauseChunks;
     }
 
-    public function updateRows(PctpWindowModel &$model, array $rows): bool
+    public function updateRows(PctpWindowModel &$model, array $rows, bool $doPreFetchProcess = true): bool
     {
         $this->preUpdateProcess($rows);
         if (SAPAccessManager::getInstance()->directUpdateTable($this->tableName, $this->preUpdateProcessRows($model, $rows), $this)) {
-            $this->postUpdateProcess($model, $rows);
+            $this->postUpdateProcess($model, $rows, $doPreFetchProcess);
             return true;
         }
         return false;
@@ -559,7 +559,7 @@ abstract class APctpWindowTab extends ASerializableClass
         return $this->getRowReferenceByScript($whereClause);
     }
 
-    public function getRowReferenceByKey(mixed $keyValue, bool $getFreshData = false): ?object
+    public function getRowReferenceByKey(mixed $keyValue, bool $getFreshData = false, bool $doPreFetchProcess = true): ?object
     {
         $rowObject = $this->getRowReference((object)['Code' => $keyValue], $getFreshData);
         if ($rowObject !== null && (bool)$this->preFetchRefreshScripts) {
@@ -571,7 +571,7 @@ abstract class APctpWindowTab extends ASerializableClass
             }
             foreach ($this->preFetchRefreshScripts as $preFetchRefreshScript) {
                 $preFetchProcessScript = str_replace('$bookingIds', "'$bookingId'", $preFetchRefreshScript);
-                SAPAccessManager::getInstance()->runUpdateNativeQuery([$preFetchProcessScript]);
+                if ($doPreFetchProcess) SAPAccessManager::getInstance()->runUpdateNativeQuery([$preFetchProcessScript]);
             }
             $rowObject = $this->getRowReference((object)['Code' => $keyValue], $getFreshData);
         }
@@ -765,7 +765,7 @@ abstract class APctpWindowTab extends ASerializableClass
         }
     }
 
-    private function postUpdateProcess(PctpWindowModel &$model, array $rows)
+    private function postUpdateProcess(PctpWindowModel &$model, array $rows, bool $doPreFetchProcess = true)
     {
         $bookingIds = [];
         foreach ($rows as $row) {
@@ -779,7 +779,7 @@ abstract class APctpWindowTab extends ASerializableClass
                 }
             }
         }
-        $this->preFetchProcess($bookingIds, $this->settings->preFetchRefreshScripts);
+        if ($doPreFetchProcess) $this->preFetchProcess($bookingIds, $this->settings->preFetchRefreshScripts);
         $this->postUpdateProcessRows($model, $rows);
     }
 
@@ -812,7 +812,7 @@ abstract class APctpWindowTab extends ASerializableClass
                                             }
                                         }
                                         $relatedTable = array_values(array_filter($this->relatedTables, fn ($z) => $z->tab === $relatedTabName . 'Tab'))[0];
-                                        $ownFieldValue = $this->getRowReferenceByKey($row->Code)->{$relatedTable->ownField};
+                                        $ownFieldValue = $this->getRowReferenceByKey($row->Code, false, false)->{$relatedTable->ownField};
                                         $relatedUpdateRow = null;
                                         if ($relatedTable->foreignField === 'Code') {
                                             $relatedUpdateRow = (object)[
@@ -832,7 +832,7 @@ abstract class APctpWindowTab extends ASerializableClass
                                             }
                                         }
                                         if (is_null($relatedUpdateRow)) continue;
-                                        if ($model->{$relatedTable->tab}->updateRows($model, [$relatedUpdateRow])) {
+                                        if ($model->{$relatedTable->tab}->updateRows($model, [$relatedUpdateRow], false)) {
                                             $relatedUpdateTab = [];
                                             $relatedUpdateTab['tab'] = $relatedTabName;
                                             $relatedUpdateTab['rows'] = [$relatedUpdateRow];
