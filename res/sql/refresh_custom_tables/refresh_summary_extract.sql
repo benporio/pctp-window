@@ -1,3 +1,12 @@
+PRINT 'CREATING TARGETS'
+    
+    DROP TABLE IF EXISTS TMP_TARGET
+    SELECT
+	    T0.U_BookingNumber
+    INTO TMP_TARGET
+    FROM [dbo].[@PCTP_POD] T0  WITH (NOLOCK)
+    WHERE T0.U_BookingNumber IN ($bookingIds);
+
 -- PRINT 'BEFORE TRY'
 -- BEGIN TRY
 --     BEGIN TRAN
@@ -285,17 +294,22 @@ FROM [dbo].[@PCTP_POD] T0  WITH (NOLOCK)
     LEFT JOIN TP_FORMULA TF ON TF.U_BookingId = T0.U_BookingNumber
     -- LEFT JOIN BILLING_EXTRACT BE ON BE.U_BookingNumber = T0.U_BookingNumber
 --JOINS
-WHERE T0.U_BookingNumber IN ($bookingIds);
+WHERE T0.U_BookingNumber IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK));
 
-    DELETE FROM SUMMARY_EXTRACT WHERE U_BookingNumber IN ($bookingIds);
+
+    DELETE FROM SUMMARY_EXTRACT WHERE U_BookingNumber IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK));
+
 
     INSERT INTO SUMMARY_EXTRACT
 SELECT
     *
 FROM TMP_UPDATE_SUMMARY_EXTRACT_$serial;
 
+
     DROP TABLE IF EXISTS TMP_UPDATE_SUMMARY_EXTRACT_$serial;
 
+
+DROP TABLE IF EXISTS TMP_TARGET;
 --     PRINT 'Last Statement in the TRY block'
 --     COMMIT TRAN
 -- END TRY
