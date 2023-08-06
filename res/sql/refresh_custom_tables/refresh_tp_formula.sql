@@ -5,11 +5,11 @@
     
     UPDATE [@FirstratesTP] 
     SET U_Amount = NULL
-    WHERE U_Amount = 'NaN' AND U_BN IN ($bookingIds)
+    WHERE U_Amount = 'NaN' AND U_BN IN ($bookingIds);
 
     UPDATE [@FirstratesTP] 
     SET U_AddlAmount = NULL
-    WHERE U_AddlAmount = 'NaN' AND U_BN IN ($bookingIds)
+    WHERE U_AddlAmount = 'NaN' AND U_BN IN ($bookingIds);
 
     DROP TABLE IF EXISTS TMP_UPDATE_TP_FORMULA_$serial
     SELECT
@@ -2805,16 +2805,16 @@
         LEFT JOIN OCRD T4 ON pod.U_SAPClient = T4.CardCode
         LEFT JOIN [dbo].[@PCTP_PRICING] pricing ON T0.U_BookingId = pricing.U_BookingId
         LEFT JOIN OCRD trucker ON pod.U_SAPTrucker = trucker.CardCode
-    WHERE T0.U_BookingId IN ($bookingIds)
+    WHERE T0.U_BookingId IN ($bookingIds);
 
-    DELETE FROM TP_FORMULA WHERE U_BookingId IN ($bookingIds)
+    DELETE FROM TP_FORMULA WHERE U_BookingId IN ($bookingIds);
 
     INSERT INTO TP_FORMULA
     SELECT
         *
-    FROM TMP_UPDATE_TP_FORMULA_$serial
+    FROM TMP_UPDATE_TP_FORMULA_$serial;
 
-    DROP TABLE IF EXISTS TMP_UPDATE_TP_FORMULA_$serial
+    DROP TABLE IF EXISTS TMP_UPDATE_TP_FORMULA_$serial;
 
 --     PRINT 'Last Statement in the TRY block'
 --     COMMIT TRAN

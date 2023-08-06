@@ -300,16 +300,16 @@ FROM [dbo].[@PCTP_PRICING] T0  WITH (NOLOCK)
     LEFT JOIN OCRD trucker ON pod.U_SAPTrucker = trucker.CardCode
     LEFT JOIN TP_FORMULA TF ON TF.U_BookingId = T0.U_BookingId
 --JOINS
-WHERE T0.U_BookingId IN ($bookingIds)
+WHERE T0.U_BookingId IN ($bookingIds);
 
-    DELETE FROM PRICING_EXTRACT WHERE U_BookingNumber IN ($bookingIds)
+    DELETE FROM PRICING_EXTRACT WHERE U_BookingNumber IN ($bookingIds);
 
     INSERT INTO PRICING_EXTRACT
 SELECT
     *
-FROM TMP_UPDATE_PRICING_EXTRACT_$serial
+FROM TMP_UPDATE_PRICING_EXTRACT_$serial;
 
-    DROP TABLE IF EXISTS TMP_UPDATE_PRICING_EXTRACT_$serial
+    DROP TABLE IF EXISTS TMP_UPDATE_PRICING_EXTRACT_$serial;
 
 --     PRINT 'Last Statement in the TRY block'
 --     COMMIT TRAN
