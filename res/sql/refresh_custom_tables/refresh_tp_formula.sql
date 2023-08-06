@@ -1,7 +1,7 @@
-PRINT 'BEFORE TRY'
-BEGIN TRY
-    BEGIN TRAN
-    PRINT 'First Statement in the TRY block'
+-- PRINT 'BEFORE TRY'
+-- BEGIN TRY
+--     BEGIN TRAN
+--     PRINT 'First Statement in the TRY block'
     
     UPDATE [@FirstratesTP] 
     SET U_Amount = NULL
@@ -2816,14 +2816,14 @@ BEGIN TRY
 
     DROP TABLE IF EXISTS TMP_UPDATE_TP_FORMULA_$serial
 
-    PRINT 'Last Statement in the TRY block'
-    COMMIT TRAN
-END TRY
-BEGIN CATCH
-    PRINT 'In CATCH Block'
-    IF(@@TRANCOUNT > 0)
-        ROLLBACK TRAN;
+--     PRINT 'Last Statement in the TRY block'
+--     COMMIT TRAN
+-- END TRY
+-- BEGIN CATCH
+--     PRINT 'In CATCH Block'
+--     IF(@@TRANCOUNT > 0)
+--         ROLLBACK TRAN;
 
-    THROW; -- raise error to the client
-END CATCH
-PRINT 'After END CATCH'
+--     THROW; -- raise error to the client
+-- END CATCH
+-- PRINT 'After END CATCH'
