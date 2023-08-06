@@ -1,7 +1,7 @@
-PRINT 'BEFORE TRY'
-BEGIN TRY
-    BEGIN TRAN
-    PRINT 'First Statement in the TRY block'
+-- PRINT 'BEFORE TRY'
+-- BEGIN TRY
+--     BEGIN TRAN
+--     PRINT 'First Statement in the TRY block'
     
     DROP TABLE IF EXISTS TMP_UPDATE_TP_EXTRACT_$serial
     SELECT
@@ -256,14 +256,14 @@ FROM [dbo].[@PCTP_TP] T0  WITH (NOLOCK)
 
     DROP TABLE IF EXISTS TMP_UPDATE_TP_EXTRACT_$serial
 
-    PRINT 'Last Statement in the TRY block'
-    COMMIT TRAN
-END TRY
-BEGIN CATCH
-    PRINT 'In CATCH Block'
-    IF(@@TRANCOUNT > 0)
-        ROLLBACK TRAN;
+--     PRINT 'Last Statement in the TRY block'
+--     COMMIT TRAN
+-- END TRY
+-- BEGIN CATCH
+--     PRINT 'In CATCH Block'
+--     IF(@@TRANCOUNT > 0)
+--         ROLLBACK TRAN;
 
-    THROW; -- raise error to the client
-END CATCH
-PRINT 'After END CATCH'
+--     THROW; -- raise error to the client
+-- END CATCH
+-- PRINT 'After END CATCH'
