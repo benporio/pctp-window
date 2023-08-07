@@ -57,14 +57,14 @@ final class PctpWindowTabHelper
         return "CAST( $column as nvarchar(max))";
     }
 
-    public function formatFieldValues(APctpWindowTab $caller, array &$rows)
+    public function formatFieldValues(APctpWindowTab $caller, array &$rows, bool $doFormatDropDownValue = false)
     {
         foreach ($rows as $row) {
-            $this->formatRowFieldValues($caller, $row);
+            $this->formatRowFieldValues($caller, $row, $doFormatDropDownValue);
         }
     }
 
-    public function formatRowFieldValues(APctpWindowTab $caller, object &$row)
+    public function formatRowFieldValues(APctpWindowTab $caller, object &$row, bool $doFormatDropDownValue = false)
     {
         foreach ($row as $field => $value) {
             $columnDefinition = $caller->getColumnReference('fieldName', $field, true);
@@ -89,6 +89,18 @@ final class PctpWindowTabHelper
                 default:
                     # code...
                     break;
+            }
+            if ($doFormatDropDownValue) {
+                switch ($columnDefinition->columnViewType) {
+                    case ColumnViewType::DROPDOWN:
+                        $options = self::$settings->dropDownOptions[$columnDefinition->options];
+                        $foundOption = array_values(array_filter($options, fn($z) => $z->Code === $row->{$field}));
+                        if ((bool)$foundOption) $row->{$field} = $foundOption[0]->Name;
+                        break;
+                    default:
+                        # code...
+                        break;
+                }
             }
         }
     }
