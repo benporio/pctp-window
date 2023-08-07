@@ -323,7 +323,8 @@ abstract class APctpWindowTab extends ASerializableClass
                 $this->tableRows[] = (object)$newRow;
             }
         }
-        $resultTableRows = $this->screenFetchedRows($this->tableRows);
+        $doFormatDropDownValueToName = isset($this->settings->config['enable_format_drop_down_value_to_name']) && $this->settings->config['enable_format_drop_down_value_to_name'];
+        $resultTableRows = $this->screenFetchedRows($this->tableRows, $this->methodTrack === 'getTableRowsDataWithHeaders' && $doFormatDropDownValueToName ? true : false);
         if ($doAssignToTableRows) $this->tableRows = $resultTableRows;
         return $resultTableRows;
     }
@@ -671,10 +672,10 @@ abstract class APctpWindowTab extends ASerializableClass
         return $result;
     }
 
-    private function screenFetchedRows(array $rows): array
+    private function screenFetchedRows(array $rows, bool $doFormatDropDownValue = false): array
     {
         PctpWindowTabHelper::getInstance($this->settings)->rowsFieldConstantReplacement($rows, ...$this->fieldConstants);
-        PctpWindowTabHelper::getInstance($this->settings)->formatFieldValues($this, $rows);
+        PctpWindowTabHelper::getInstance($this->settings)->formatFieldValues($this, $rows, $doFormatDropDownValue);
         if (in_array(get_class($this), ['PodTab', 'BillingTab', 'TpTab'])) PctpWindowTabHelper::getInstance($this->settings)->setAttachmentsBasenames($this, $rows, false);
         return $this->postFetchProcessRows($rows);
     }
