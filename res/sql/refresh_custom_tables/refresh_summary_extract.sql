@@ -18,7 +18,7 @@ PRINT 'CREATING TARGETS'
     T0.Code,
     T0.U_BookingNumber,
     T0.U_BookingDate,
-    T0.U_ClientName,
+    T1.CardName AS U_ClientName,
     T0.U_SAPClient,
     -- T0.U_ServiceType,
     CASE
