@@ -1,6 +1,6 @@
 CREATE PROCEDURE HumanResources.uspGetEmployeesTest2   
     @TabName nvarchar(20) CHECK (@TabName in ('SUMMARY', 'POD', 'BILLING', 'TP', 'PRICING')),   
-    @BookingIds nvarchar(50)   
+    @BookingIds nvarchar(max)   
 AS   
 
 SET NOCOUNT ON;  
@@ -13,30 +13,104 @@ SELECT
         WHEN @TabName = 'BILLING' THEN BILLING.Code
         WHEN @TabName = 'TP' THEN TP.Code
         WHEN @TabName = 'PRICING' THEN PRICING.Code
+        ELSE NULL
     END As Code,
     CASE
-        WHEN EXISTS(SELECT 1
-        FROM OINV H, INV1 L
-        WHERE H.DocEntry = L.DocEntry AND L.ItemCode = POD.U_BookingNumber AND H.CANCELED = 'N')
-        AND EXISTS(
-                SELECT 1
-        FROM OPCH H, PCH1 L
-        WHERE H.DocEntry = L.DocEntry AND H.CANCELED = 'N'
-            AND (L.ItemCode = POD.U_BookingNumber
-            OR (REPLACE(REPLACE(RTRIM(LTRIM(TP.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(H.U_PVNo)) + '%')))
-        THEN 'Y'
+        WHEN @TabName = 'POD' THEN 
+            CASE
+                WHEN EXISTS(SELECT 1
+                FROM OINV H, INV1 L
+                WHERE H.DocEntry = L.DocEntry AND L.ItemCode = POD.U_BookingNumber AND H.CANCELED = 'N')
+                AND EXISTS(
+                        SELECT 1
+                FROM OPCH H, PCH1 L
+                WHERE H.DocEntry = L.DocEntry AND H.CANCELED = 'N'
+                    AND (L.ItemCode = POD.U_BookingNumber
+                    OR (REPLACE(REPLACE(RTRIM(LTRIM(TP.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(H.U_PVNo)) + '%')))
+                THEN 'Y'
+                ELSE 'N'
+            END
+        WHEN @TabName = 'BILLING' THEN 
+            CASE
+                WHEN (SELECT DISTINCT COUNT(*)
+            FROM OINV H LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
+            WHERE L.ItemCode = BILLING.U_BookingId AND H.CANCELED = 'N') > 1
+                THEN 'Y'
+                ELSE 'N'
+            END
+        WHEN @TabName = 'TP' THEN TF.DisableTableRow
         ELSE 'N'
-    END AS DisableTableRow,
+    END As DisableTableRow,
+    CASE
+        WHEN @TabName = 'BILLING' THEN 
+            CASE
+                WHEN (SELECT DISTINCT COUNT(*)
+            FROM OINV H LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
+            WHERE L.ItemCode = BILLING.U_BookingId AND H.CANCELED = 'N') = 1
+                THEN 'DisableSomeFields'
+                ELSE ''
+            END
+        WHEN @TabName = 'TP' THEN TF.DisableSomeFields
+        WHEN @TabName = 'PRICING' THEN 
+            CASE
+                WHEN (SELECT DISTINCT COUNT(*)
+            FROM OINV H LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
+            WHERE L.ItemCode = PRICING.U_BookingId AND H.CANCELED = 'N') > 0
+                THEN 'DisableFieldsForBilling'
+                ELSE ''
+            END
+        ELSE ''
+    END As DisableSomeFields,
     POD.U_BookingDate,
-    POD.U_BookingNumber,
-    POD.U_BookingNumber AS U_BookingId,
+    CASE
+        WHEN @TabName = 'SUMMARY' THEN POD.U_BookingNumber
+        WHEN @TabName = 'POD' THEN POD.U_BookingNumber
+        WHEN @TabName = 'BILLING' THEN BILLING.U_BookingId
+        WHEN @TabName = 'TP' THEN TP.U_BookingId
+        WHEN @TabName = 'PRICING' THEN PRICING.U_BookingId
+        ELSE NULL
+    END As U_BookingNumber,
+    CASE
+        WHEN @TabName = 'SUMMARY' THEN POD.U_BookingNumber
+        WHEN @TabName = 'POD' THEN POD.U_BookingNumber
+        WHEN @TabName = 'BILLING' THEN BILLING.U_BookingId
+        WHEN @TabName = 'TP' THEN TP.U_BookingId
+        WHEN @TabName = 'PRICING' THEN PRICING.U_BookingId
+        ELSE NULL
+    END As U_BookingId,
+    BILLING.U_BookingId AS U_PODNum,
     CASE
         WHEN EXISTS(SELECT 1
     FROM ORDR header
     WHERE header.CANCELED = 'N' AND header.DocEntry = BILLING.U_PODSONum) THEN BILLING.U_PODSONum
         ELSE ''
     END AS U_PODSONum,
+    CASE
+        WHEN @TabName = 'BILLING' THEN 
+            (
+                SELECT TOP 1
+                header.DocNum
+            FROM ORDR header
+                LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
+            WHERE line.ItemCode = BILLING.U_BookingId
+                AND header.CANCELED = 'N'
+            )
+        ELSE 
+            CASE
+                WHEN EXISTS(SELECT 1
+            FROM ORDR header
+            WHERE header.CANCELED = 'N' AND header.DocEntry = BILLING.U_PODSONum) THEN BILLING.U_PODSONum
+                ELSE ''
+            END
+    END As U_PODSONum,
+    client.CardName AS U_CustomerName,
     PRICING.U_GrossClientRates,
+    PRICING.U_GrossClientRates AS U_GrossInitialRate,
+    PRICING.U_Demurrage AS U_Demurrage,
+    ISNULL(PRICING.U_AddtlDrop,0) + 
+    ISNULL(PRICING.U_BoomTruck,0) + 
+    ISNULL(PRICING.U_Manpower,0) + 
+    ISNULL(PRICING.U_Backload,0)  AS U_AddCharges,
     CASE
         WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN PRICING.U_GrossClientRates
         WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (PRICING.U_GrossClientRates / 1.12)
@@ -165,9 +239,12 @@ SELECT
             ELSE POD.U_BillingStatus 
         END
     END AS U_BillingStatus,
-    POD.U_ServiceType,
+    -- POD.U_ServiceType,
     POD.U_SINo,
-    POD.U_BillingTeam,
+    CASE
+        WHEN @TabName = 'BILLING' THEN BILLING.U_BillingTeam
+        ELSE POD.U_BillingTeam
+    END As U_BillingTeam,
     POD.U_SOBNumber,
     POD.U_ForwardLoad,
     POD.U_BackLoad,
@@ -228,6 +305,12 @@ SELECT
     + ISNULL(BILLING.U_RateAdjustments, 0)
     + ISNULL(BILLING.U_ActualDemurrage, 0)
     + ISNULL(BILLING.U_ActualAddCharges, 0) AS U_TotalRecClients,
+    BILLING.U_CheckingTotalBilled,
+    BILLING.U_Checking,
+    BILLING.U_CWT2307,
+    BILLING.U_SOLineNum,
+    BILLING.U_ARInvLineNum,
+    client_group.ExtraDays,
     ISNULL(CASE
         WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossTruckerRates, 0)
         WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossTruckerRates, 0) / 1.12)
@@ -283,6 +366,18 @@ SELECT
     + ISNULL(BILLING.U_ActualAddCharges, 0)) AS U_VarAR,
     TF.U_TotalAP,
     TF.U_VarTP,
+    CASE
+        WHEN @TabName = 'SUMMARY' THEN 
+            CASE 
+                WHEN TF.U_DocNum IS NULL OR TF.U_DocNum = '' THEN TF.U_Paid
+                ELSE 
+                    CASE 
+                        WHEN TF.U_Paid IS NULL OR TF.U_Paid = '' THEN TF.U_DocNum 
+                        ELSE CONCAT(TF.U_DocNum, ', ', TF.U_Paid)
+                    END
+            END
+        ELSE NULL
+    END As U_APDocNum,
     dbo.computePODSubmitDeadline(
         POD.U_DeliveryDateDTR,
         ISNULL(client.U_CDC,0)
@@ -464,6 +559,86 @@ SELECT
     ISNULL(client.U_CDC,0) 'CDC',
     ISNULL(client.U_DCD,0) 'DCD',
     ISNULL(PRICING.U_GrossTruckerRates,0) 'GrossTruckerRates',
+    CAST((
+        SELECT DISTINCT
+        SUBSTRING(
+                (
+                    SELECT CONCAT(', ', header.U_ServiceType)  AS [text()]
+        FROM INV1 line
+            LEFT JOIN OINV header ON header.DocEntry = line.DocEntry
+        WHERE line.ItemCode = POD.U_BookingNumber
+            AND header.U_ServiceType IS NOT NULL
+            AND header.CANCELED = 'N'
+        FOR XML PATH (''), TYPE
+                ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
+    FROM OINV header
+        LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
+    WHERE line.ItemCode = POD.U_BookingNumber
+        AND header.U_ServiceType IS NOT NULL
+        AND header.CANCELED = 'N'
+        ) as nvarchar(max)
+    ) AS U_ServiceType,
+    CAST((
+        SELECT DISTINCT
+        SUBSTRING(
+                (
+                    SELECT
+            CASE
+                        WHEN header.U_InvoiceNo = '' OR header.U_InvoiceNo IS NULL THEN ''
+                        ELSE CONCAT(', ', header.U_InvoiceNo)
+                    END AS [text()]
+        FROM INV1 line
+            LEFT JOIN OINV header ON header.DocEntry = line.DocEntry
+        WHERE line.ItemCode = POD.U_BookingNumber
+            AND header.CANCELED = 'N'
+        FOR XML PATH (''), TYPE
+                ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
+    FROM OINV header
+        LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
+    WHERE line.ItemCode = POD.U_BookingNumber
+        AND header.CANCELED = 'N') as nvarchar(max)
+    ) AS U_InvoiceNo,
+    CASE
+        WHEN @TabName = 'SUMMARY' THEN 
+            CAST((
+                SELECT DISTINCT
+                SUBSTRING(
+                        (
+                            SELECT CONCAT(', ', header.DocNum)  AS [text()]
+                FROM INV1 line
+                    LEFT JOIN OINV header ON header.DocEntry = line.DocEntry
+                WHERE line.ItemCode = POD.U_BookingNumber
+                    AND header.CANCELED = 'N'
+                FOR XML PATH (''), TYPE
+                        ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
+            FROM OINV header
+                LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
+            WHERE line.ItemCode = POD.U_BookingNumber
+                AND header.CANCELED = 'N') as nvarchar(max)
+            )
+        ELSE NULL
+    END As U_ARDocNum,
+    CASE
+        WHEN @TabName = 'BILLING' THEN 
+            CAST((
+                SELECT DISTINCT
+                SUBSTRING(
+                        (
+                            SELECT CONCAT(', ', header.DocNum)  AS [text()]
+                FROM INV1 line
+                    LEFT JOIN OINV header ON header.DocEntry = line.DocEntry
+                WHERE line.ItemCode = BILLING.U_BookingId
+                    AND header.CANCELED = 'N'
+                FOR XML PATH (''), TYPE
+                        ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
+            FROM OINV header
+                LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
+            WHERE line.ItemCode = BILLING.U_BookingId
+                AND header.CANCELED = 'N') as nvarchar(max)
+            )
+        WHEN @TabName = 'POD' THEN CAST(POD.U_DocNum as nvarchar(max))
+        ELSE NULL
+    END As U_DocNum,
     ISNULL(CAST(client.U_GroupLocation as nvarchar(max)), '') AS U_GroupProject,
     CAST(POD.U_Attachment as nvarchar(max)) AS U_Attachment,
     CAST(POD.U_DeliveryOrigin as nvarchar(max)) AS U_DeliveryOrigin,
@@ -475,7 +650,6 @@ SELECT
     CAST(POD.U_BTRemarks as nvarchar(max)) AS U_BTRemarks,
     CAST(POD.U_DestinationClient as nvarchar(max)) AS U_DestinationClient,
     CAST(POD.U_Remarks2 as nvarchar(max)) AS U_Remarks2,
-    CAST(POD.U_DocNum as nvarchar(max)) AS U_DocNum,
     CAST(POD.U_TripTicketNo as nvarchar(max)) AS U_TripTicketNo,
     CAST(POD.U_WaybillNo as nvarchar(max)) AS U_WaybillNo,
     CAST(POD.U_ShipmentNo as nvarchar(max)) AS U_ShipmentNo,
@@ -500,6 +674,7 @@ FROM [dbo].[@PCTP_POD] POD WITH (NOLOCK)
     LEFT JOIN [dbo].[@PCTP_PRICING] PRICING ON POD.U_BookingNumber = PRICING.U_BookingId
     LEFT JOIN OCRD client ON POD.U_SAPClient = client.CardCode
     LEFT JOIN OCRD trucker ON POD.U_SAPTrucker = trucker.CardCode
+    LEFT JOIN OCTG client_group ON client.GroupNum = client_group.GroupNum
     LEFT JOIN TP_FORMULA TF ON TF.U_BookingId = T0.U_BookingNumber
 ;  
     
