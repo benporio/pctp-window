@@ -3129,7 +3129,14 @@ PRINT 'CREATING TMP_UPDATE_TP_EXTRACT'
     pod.U_BookingDate,
     -- T0.U_PODNum,
     T0.U_BookingId AS U_PODNum,
-    billing.U_PODSONum AS U_PODSONum,
+    (
+        SELECT TOP 1
+        header.DocNum
+    FROM ORDR header
+        LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
+    WHERE line.ItemCode = billing.U_BookingId
+        AND header.CANCELED = 'N'
+    ) AS U_PODSONum,
     T4.CardName AS U_ClientName,
     T5.CardName AS U_TruckerName,
     pod.U_SAPTrucker AS U_TruckerSAP,
@@ -3355,12 +3362,14 @@ PRINT 'CREATING TMP_UPDATE_POD_EXTRACT'
         T0.U_BookingNumber AS Code,
         T0.U_BookingDate,
         T0.U_BookingNumber,
-        CASE
-            WHEN EXISTS(SELECT 1
+        (
+        SELECT TOP 1
+            header.DocNum
         FROM ORDR header
-        WHERE header.CANCELED = 'N' AND header.DocEntry = billing.U_PODSONum) THEN billing.U_PODSONum
-            ELSE ''
-        END AS U_PODSONum,
+            LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
+        WHERE line.ItemCode = billing.U_BookingId
+            AND header.CANCELED = 'N'
+        ) AS U_PODSONum,
         -- billing.U_PODSONum AS U_PODSONum,
         -- T0.U_ClientName,
         client.CardName AS U_ClientName,
@@ -3809,12 +3818,14 @@ PRINT 'CREATING TMP_UPDATE_SUMMARY_EXTRACT'
     T0.U_VerifiedDateHC,
     T0.U_PTFNo,
     T0.U_DateForwardedBT,
-    CASE
-        WHEN EXISTS(SELECT 1
+    (
+        SELECT TOP 1
+        header.DocNum
     FROM ORDR header
-    WHERE header.CANCELED = 'N' AND header.DocEntry = billing.U_PODSONum) THEN billing.U_PODSONum
-        ELSE ''
-    END AS U_PODSONum,
+        LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
+    WHERE line.ItemCode = billing.U_BookingId
+        AND header.CANCELED = 'N'
+    ) AS U_PODSONum,
     pricing.U_GrossClientRates,
     CASE
         WHEN ISNULL(T1.VatStatus,'Y') = 'Y' THEN pricing.U_GrossClientRates
@@ -4216,12 +4227,14 @@ PRINT 'CREATING TMP_UPDATE_PRICING_EXTRACT'
     FROM OINV H
         LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
     WHERE H.CANCELED = 'N' AND L.ItemCode = T0.U_BookingId) - billing.U_TotalRecClients AS U_VarAR,
-    CASE
-        WHEN EXISTS(SELECT 1
+    (
+        SELECT TOP 1
+        header.DocNum
     FROM ORDR header
-    WHERE header.CANCELED = 'N' AND header.DocEntry = billing.U_PODSONum) THEN billing.U_PODSONum
-        ELSE ''
-    END AS U_PODSONum,
+        LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
+    WHERE line.ItemCode = billing.U_BookingId
+        AND header.CANCELED = 'N'
+    ) AS U_PODSONum,
     ISNULL(tp.U_ActualRates, 0) AS U_ActualRates,
     ISNULL(tp.U_RateAdjustments, 0) AS U_TPRateAdjustments,
     ISNULL(tp.U_ActualDemurrage, 0) AS U_TPActualDemurrage,
