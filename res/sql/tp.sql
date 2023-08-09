@@ -29,7 +29,14 @@ SELECT
     pod.U_BookingDate,
     -- T0.U_PODNum,
     T0.U_BookingId AS U_PODNum,
-    billing.U_PODSONum AS U_PODSONum,
+    (
+        SELECT TOP 1
+        header.DocNum
+    FROM ORDR header
+        LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
+    WHERE line.ItemCode = billing.U_BookingId
+        AND header.CANCELED = 'N'
+    ) AS U_PODSONum,
     T4.CardName AS U_ClientName,
     T5.CardName AS U_TruckerName,
     pod.U_SAPTrucker AS U_TruckerSAP,

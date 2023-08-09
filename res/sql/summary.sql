@@ -31,12 +31,14 @@ SELECT
     T0.U_VerifiedDateHC,
     T0.U_PTFNo,
     T0.U_DateForwardedBT,
-    CASE
-        WHEN EXISTS(SELECT 1
+    (
+        SELECT TOP 1
+        header.DocNum
     FROM ORDR header
-    WHERE header.CANCELED = 'N' AND header.DocEntry = billing.U_PODSONum) THEN billing.U_PODSONum
-        ELSE ''
-    END AS U_PODSONum,
+        LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
+    WHERE line.ItemCode = billing.U_BookingId
+        AND header.CANCELED = 'N'
+    ) AS U_PODSONum,
     pricing.U_GrossClientRates,
     CASE
         WHEN ISNULL(T1.VatStatus,'Y') = 'Y' THEN pricing.U_GrossClientRates

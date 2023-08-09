@@ -205,12 +205,14 @@ SELECT
     + ISNULL(billing.U_RateAdjustments, 0)
     + ISNULL(billing.U_ActualDemurrage, 0)
     + ISNULL(billing.U_ActualAddCharges, 0)) AS U_VarAR,
-    CASE
-        WHEN EXISTS(SELECT 1
+    (
+    SELECT TOP 1
+        header.DocNum
     FROM ORDR header
-    WHERE header.CANCELED = 'N' AND header.DocEntry = billing.U_PODSONum) THEN billing.U_PODSONum
-        ELSE ''
-    END AS U_PODSONum,
+        LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
+    WHERE line.ItemCode = billing.U_BookingId
+        AND header.CANCELED = 'N'
+    ) AS U_PODSONum,
     ISNULL(tp.U_ActualRates, 0) AS U_ActualRates,
     ISNULL(tp.U_RateAdjustments, 0) AS U_TPRateAdjustments,
     ISNULL(tp.U_ActualDemurrage, 0) AS U_TPActualDemurrage,
