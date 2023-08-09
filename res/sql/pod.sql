@@ -30,12 +30,14 @@ SELECT
     T0.U_BookingNumber AS Code,
     T0.U_BookingDate,
     T0.U_BookingNumber,
-    CASE
-        WHEN EXISTS(SELECT 1
+    (
+        SELECT TOP 1
+        header.DocNum
     FROM ORDR header
-    WHERE header.CANCELED = 'N' AND header.DocEntry = billing.U_PODSONum) THEN billing.U_PODSONum
-        ELSE ''
-    END AS U_PODSONum,
+        LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
+    WHERE line.ItemCode = billing.U_BookingId
+        AND header.CANCELED = 'N'
+    ) AS U_PODSONum,
     -- billing.U_PODSONum AS U_PODSONum,
     -- T0.U_ClientName,
     client.CardName AS U_ClientName,
