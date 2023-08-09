@@ -314,7 +314,25 @@ class TpTab extends APctpWindowTab
     {
         $queries = [];
         $queries[] = "UPDATE $this->tableName SET U_DocNum = $addedAPNum WHERE Code = '$tpCode'";
+        $rows = [];
+        $dataRow = $this->getRowReference((object)[ 'Code' => $tpCode ]);
+        $rows[] = (object)[
+            'BookingId' => $dataRow->BookingId,
+            'tab' => 'tp',
+            'userInfo' => [
+                'sessionId' => session_id(),
+                'userName' => $_SESSION['SESS_NAME'],
+                'userId' => $_SESSION['SESS_USERID'],
+            ],
+            'old' => [
+                'DocNum' => $dataRow->DocNum,
+            ],
+            'new' => [
+                'DocNum' => $addedAPNum,
+            ],
+        ];
         $result = SAPAccessManager::getInstance()->runUpdateNativeQuery($queries);
+        SAPAccessManager::getInstance()->log($rows, [], LogEventType::CREATE_AP);
         $appendedArgs['postProcessResultData'] = $result;
         $rDataRows = [];
         $rDataRows[] = (object)[
