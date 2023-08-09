@@ -2824,7 +2824,8 @@ PRINT 'CREATING TARGETS'
 
     INSERT INTO TP_FORMULA
     SELECT
-        *
+        U_BookingId, DisableTableRow, DisableSomeFields, U_TotalAP, U_VarTP, U_DocNum, U_Paid, U_LostPenaltyCalc, U_TotalSubPenalty, U_TotalPenaltyWaived, U_InteluckPenaltyCalc, U_ClientSubOverdue, 
+        U_ClientPenaltyCalc
     FROM TMP_UPDATE_TP_FORMULA_$serial;
 
 
