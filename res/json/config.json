@@ -5,5 +5,5 @@
     "enable_data_row_realtime": false,
     "enable_fetch_from_extract": true,
     "disable_refresh_extract_when_fetching": false,
-    "enable_format_drop_down_value_to_name": false
+    "enable_format_drop_down_value_to_name": true
 }
