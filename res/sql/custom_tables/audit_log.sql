@@ -7,7 +7,7 @@ CREATE TABLE PCTP_WINDOW_JSON_LOG
     event_type NVARCHAR(max) NOT NULL,
     ref_id NVARCHAR(max) NOT NULL,
     json_data NVARCHAR(max),
-    CONSTRAINT event_type_chk CHECK (event_type in ('UPDATE'))
+    CONSTRAINT event_type_chk CHECK (event_type in ('UPDATE', 'CREATE_SO', 'CREATE_AR', 'CREATE_AP'))
 );
 
 -----> SAMPLE QUERY
