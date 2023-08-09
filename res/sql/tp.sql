@@ -150,7 +150,7 @@ SELECT
     ELSE substring(T0.U_PVNo, 3, 100)
     END AS U_PVNo,
 
-    T0.U_ORRefNo,
+    
     T0.U_TPincharge,
     ISNULL(T0.U_CAandDP,0) AS U_CAandDP,
     ISNULL(T0.U_Interest,0) AS U_Interest,
@@ -172,6 +172,15 @@ SELECT
     -- T0.U_PaymentReference,
     -- T0.U_PaymentStatus,
 
+    -- T0.U_ORRefNo,
+
+    SUBSTRING((
+        SELECT
+			CONCAT(', ', T0.U_OR_Ref) AS [text()]
+		FROM OPCH T0 WITH (NOLOCK)
+		WHERE T0.Canceled <> 'Y' AND T0.DocNum IN (SELECT RTRIM(LTRIM(value)) AS DocNum FROM STRING_SPLIT(TF.U_Paid, ','))
+		FOR XML PATH (''), TYPE).value('text()[1]','nvarchar(max)'), 2, 1000
+    ) AS U_ORRefNo,
     SUBSTRING((
         SELECT
             CONCAT(', ', CAST(T0.TrsfrDate AS DATE)) AS [text()]

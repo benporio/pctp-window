@@ -165,7 +165,7 @@ PRINT 'CREATING TARGETS'
     ELSE substring(T0.U_PVNo, 3, 100)
     END AS U_PVNo,
 
-    T0.U_ORRefNo,
+    -- T0.U_ORRefNo,
     -- T0.U_ActualPaymentDate,
     -- T0.U_PaymentReference,
     -- T0.U_PaymentStatus,
@@ -199,6 +199,13 @@ PRINT 'CREATING TARGETS'
     CAST(pod.U_DeliveryReceiptNo as nvarchar(max)) AS U_DeliveryReceiptNo,
     CAST(pod.U_SeriesNo as nvarchar(max)) AS U_SeriesNo,
 
+    SUBSTRING((
+        SELECT
+			CONCAT(', ', T0.U_OR_Ref) AS [text()]
+		FROM OPCH T0 WITH (NOLOCK)
+		WHERE T0.Canceled <> 'Y' AND T0.DocNum IN (SELECT RTRIM(LTRIM(value)) AS DocNum FROM STRING_SPLIT(TF.U_Paid, ','))
+		FOR XML PATH (''), TYPE).value('text()[1]','nvarchar(max)'), 2, 1000
+    ) AS U_ORRefNo,
     SUBSTRING((
         SELECT
             CONCAT(', ', CAST(T0.TrsfrDate AS DATE)) AS [text()]
