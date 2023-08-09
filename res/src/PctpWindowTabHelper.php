@@ -91,15 +91,10 @@ final class PctpWindowTabHelper
                     break;
             }
             if ($doFormatDropDownValue) {
-                switch ($columnDefinition->columnViewType) {
-                    case ColumnViewType::DROPDOWN:
-                        $options = self::$settings->dropDownOptions[$columnDefinition->options];
-                        $foundOption = array_values(array_filter($options, fn($z) => $z->Code === $row->{$field}));
-                        if ((bool)$foundOption) $row->{$field} = $foundOption[0]->Name;
-                        break;
-                    default:
-                        # code...
-                        break;
+                if (isset($columnDefinition->options) && $columnDefinition->options !== '') {
+                    $options = self::$settings->dropDownOptions[$columnDefinition->options];
+                    $foundOption = array_values(array_filter($options, fn($z) => $z->Code === $row->{$field}));
+                    if ((bool)$foundOption) $row->{$field} = $foundOption[0]->Name;
                 }
             }
         }
