@@ -274,15 +274,15 @@ abstract class APctpWindowTab extends ASerializableClass
                     $newOrderClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $orderClause);
                 }
                 $bookingIdColumn = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BookingId'), $hasAppendedCustomAlias ? $appendedCustomAlias : '', $enableFieldsFindOptions);
+                $minimizeBookingIdScript = preg_replace('/--COLUMNS[\s\S]+--COLUMNS/', "$bookingIdColumn AS BookingId", $bookingIdScript);
+                $preScript = "$minimizeBookingIdScript \n$newFilterClause \n$newOrderClause \n$offsetClause";
+                $bookingIds = SAPAccessManager::getInstance()->getRows($preScript);
+                $bookingIdsStr = "'" . join("','", array_map(fn ($z) => $z->BookingId, $bookingIds)) . "'";
                 if ($doFetchFromExtract) {
+                    if ($doPreFetchProcess && $doRefreshExtractWhenFetching) $this->preFetchProcess($bookingIds);
+                    $newFilterClause = 'WHERE ' . $bookingIdColumn . " IN ($bookingIdsStr) ";
                     $preScript = "$bookingIdScript \n$newFilterClause \n$newOrderClause \n$offsetClause";
                     $partialTableRows = SAPAccessManager::getInstance()->getRows($preScript);
-                    if ($doPreFetchProcess && $doRefreshExtractWhenFetching) $this->preFetchProcess(array_map(fn ($z) => (object)[ 'BookingId' => isset($z->U_BookingId) ? $z->U_BookingId : $z->U_BookingNumber], $partialTableRows));
-                } else {
-                    $bookingIdScript = preg_replace('/--COLUMNS[\s\S]+--COLUMNS/', "$bookingIdColumn AS BookingId", $bookingIdScript);
-                    $preScript = "$bookingIdScript \n$newFilterClause \n$newOrderClause \n$offsetClause";
-                    $bookingIds = SAPAccessManager::getInstance()->getRows($preScript);
-                    $bookingIdsStr = "'" . join("','", array_map(fn ($z) => $z->BookingId, $bookingIds)) . "'";
                 }
             } else {
                 $bookingIdColumn = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BookingId'), $tableAlias, $enableFieldsFindOptions);
