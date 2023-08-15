@@ -244,6 +244,7 @@ class PctpWindowController extends ASerializableClass
         $logMessage .= ' ~ '.$_SERVER['HTTP_REFERER'];
         $logMessage .= ' ~ '.$methodName;
         $logMessage .= ' ~ '.json_encode($data);
+        $logMessage .= "\n";
         file_put_contents(__DIR__.'/../logs/controller.txt', $logMessage, FILE_APPEND | LOCK_EX);
     }
 
