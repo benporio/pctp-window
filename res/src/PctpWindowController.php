@@ -240,7 +240,10 @@ class PctpWindowController extends ASerializableClass
 
     private function log(string $methodName, object $data): void 
     {
-        $logMessage = date("l, F j, Y H:i:s A e");
+        $dt = new DateTime(); 
+        $dt->setTimezone(new DateTimeZone('Asia/Manila'));
+        $dt->setTimestamp(time()); 
+        $logMessage = $dt->format("l, F j, Y h:i:s A e");
         $logMessage .= ' ~ '.$_SERVER['HTTP_REFERER'];
         $logMessage .= ' ~ SESSION:'.session_id();
         $logMessage .= ' ~ METHOD:'.$methodName;
