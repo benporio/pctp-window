@@ -727,12 +727,15 @@ class PodTab extends APctpWindowTab
                             'values' => ['Cancelled'],
                             'for' => ['', 'update'],
                             'observee' => (object)[
-                                'fields' => ['PTFNo'],
+                                'fields' => [],
                                 'acceptedValuesRegex' => '',
                                 'invalidValues' => [],
                                 'result' => (object)[
                                     'success' => (object)[
-                                        'callback' => 'clearElementValue'
+                                        'callback' => 'clearOtherElementValue',
+                                        'arg' => [
+                                            'targetField' => 'PTFNo'
+                                        ]
                                     ]
                                 ]
                             ]
