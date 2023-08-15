@@ -250,7 +250,7 @@ class PctpWindowController extends ASerializableClass
     public function refreshExtractTables(object $data): IAction 
     {
         try {
-            $this->log('refreshExtractTables[START]', json_decode(json_encode($data)));
+            $this->log('refreshExtractTables[START]', $data);
             if (isset($data->bookingIds) && (bool)$data->bookingIds && is_array($data->bookingIds)) {
                 $bookingIds = array_map(fn($z) => (object)['BookingId' => $z], $data->bookingIds);
                 $this->model->summaryTab->preFetchProcess($bookingIds, $this->model->getSettings()->preFetchRefreshScripts);
@@ -265,7 +265,7 @@ class PctpWindowController extends ASerializableClass
                 'data' => ['message' => $th->getMessage()],
             ];
         }
-        $this->log('refreshExtractTables[END]', $return);
+        $this->log('refreshExtractTables[END]', json_decode(json_encode($return)));
         return new class((object)['data' => $return]) implements IAction
         {
             function __construct(private object $obj) { }
