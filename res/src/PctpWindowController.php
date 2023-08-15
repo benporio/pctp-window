@@ -244,7 +244,7 @@ class PctpWindowController extends ASerializableClass
         $logMessage .= ' ~ '.$_SERVER['HTTP_REFERER'];
         $logMessage .= ' ~ '.$methodName;
         $logMessage .= ' ~ '.json_encode($data);
-        file_put_contents(__DIR__.'/../log/controller.txt', $logMessage, FILE_APPEND | LOCK_EX);
+        file_put_contents(__DIR__.'/../logs/controller.txt', $logMessage, FILE_APPEND | LOCK_EX);
     }
 
     public function refreshExtractTables(object $data): IAction 

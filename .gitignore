@@ -7,3 +7,4 @@
 /res/inc/globals.php
 /res/inc/restriction.php
 /res/sql/tmp
+/res/logs/*
