@@ -240,7 +240,7 @@ class PctpWindowController extends ASerializableClass
 
     private function log(string $methodName, object $data): void 
     {
-        $logMessage = date(DATE_COOKIE);
+        $logMessage = date("l, F j, Y H:i:s A e");
         $logMessage .= ' ~ '.$_SERVER['HTTP_REFERER'];
         $logMessage .= ' ~ SESSION:'.session_id();
         $logMessage .= ' ~ METHOD:'.$methodName;
