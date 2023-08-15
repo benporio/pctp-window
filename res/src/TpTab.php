@@ -37,16 +37,16 @@ class TpTab extends APctpWindowTab
             new ColumnDefinition('TruckerName', 'Trucker Name', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
             new ColumnDefinition('TruckerSAP', 'Trucker SAP Code', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
             new ColumnDefinition('PlateNumber', 'Plate Number', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
-            new ColumnDefinition('VehicleTypeCap', 'Vehicle Type & Capacity', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
+            new ColumnDefinition('VehicleTypeCap', 'Vehicle Type & Capacity', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO, 'vehicleTypeCapOptions'),
             new ColumnDefinition('DeliveryOrigin', 'Delivery Origin', ColumnType::TEXT, ColumnViewType::AUTO),
-            new ColumnDefinition('ISLAND', 'ISLAND (ORIGIN)', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
+            new ColumnDefinition('ISLAND', 'ISLAND (ORIGIN)', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO, 'islandsOptions'),
             new ColumnDefinition('Destination', 'Destination', ColumnType::TEXT, ColumnViewType::AUTO),
-            new ColumnDefinition('ISLAND_D', 'ISLAND (DESTINATION)', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
-            new ColumnDefinition('IFINTERISLAND', 'if Interisland', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
-            new ColumnDefinition('DeliveryStatus', 'Delivery Status', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
+            new ColumnDefinition('ISLAND_D', 'ISLAND (DESTINATION)', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO, 'islandsOptions'),
+            new ColumnDefinition('IFINTERISLAND', 'if Interisland', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO, 'yesNoOptions'),
+            new ColumnDefinition('DeliveryStatus', 'Delivery Status', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO, 'deliveryStatusOptions'),
             new ColumnDefinition('DeliveryDatePOD', 'Delivery Complete Date (PER POD)', ColumnType::DATE, ColumnViewType::AUTO),
             new ColumnDefinition('NoOfDrops', 'No of Drops', ColumnType::INT, ColumnViewType::AUTO),
-            new ColumnDefinition('TripType', 'Trip Type', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
+            new ColumnDefinition('TripType', 'Trip Type', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO, 'tripTypeOptions'),
             new ColumnDefinition('Remarks2', 'Remarks', ColumnType::TEXT, ColumnViewType::AUTO),
             new ColumnDefinition('TripTicketNo', 'Trip Ticket No', ColumnType::TEXT, ColumnViewType::AUTO),
             new ColumnDefinition('WaybillNo', 'Waybill #', ColumnType::TEXT, ColumnViewType::AUTO),
@@ -314,7 +314,25 @@ class TpTab extends APctpWindowTab
     {
         $queries = [];
         $queries[] = "UPDATE $this->tableName SET U_DocNum = $addedAPNum WHERE Code = '$tpCode'";
+        $rows = [];
+        $dataRow = $this->getRowReference((object)[ 'Code' => $tpCode ]);
+        $rows[] = (object)[
+            'BookingId' => $dataRow->BookingId,
+            'tab' => 'tp',
+            'userInfo' => [
+                'sessionId' => session_id(),
+                'userName' => $_SESSION['SESS_NAME'],
+                'userId' => $_SESSION['SESS_USERID'],
+            ],
+            'old' => [
+                'DocNum' => $dataRow->DocNum,
+            ],
+            'new' => [
+                'DocNum' => $addedAPNum,
+            ],
+        ];
         $result = SAPAccessManager::getInstance()->runUpdateNativeQuery($queries);
+        SAPAccessManager::getInstance()->log($rows, [], LogEventType::CREATE_AP);
         $appendedArgs['postProcessResultData'] = $result;
         $rDataRows = [];
         $rDataRows[] = (object)[
