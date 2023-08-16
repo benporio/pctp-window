@@ -267,7 +267,10 @@ class PctpWindowController extends ASerializableClass
         } catch (\Throwable $th) {
             $return = [
                 'result' => 'failed',
-                'data' => ['message' => $th->getMessage()],
+                'data' => [
+                    'message' => $th->getMessage(),
+                    'raw' => strval($th),
+                ],
             ];
         }
         $this->log('refreshExtractTables[END]', json_decode(json_encode($return)));
