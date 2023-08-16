@@ -1,9 +1,9 @@
 PRINT 'CREATING TARGETS'
     
-    DROP TABLE IF EXISTS TMP_TARGET
+    DROP TABLE IF EXISTS TMP_TARGET_$serial
     SELECT
 	    T0.U_BookingNumber
-    INTO TMP_TARGET
+    INTO TMP_TARGET_$serial
     FROM [dbo].[@PCTP_POD] T0  WITH (NOLOCK)
     WHERE T0.U_BookingNumber IN ($bookingIds);
 
@@ -14,12 +14,12 @@ PRINT 'CREATING TARGETS'
     
     UPDATE [@FirstratesTP] 
     SET U_Amount = NULL
-    WHERE U_Amount = 'NaN' AND U_BN IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK));
+    WHERE U_Amount = 'NaN' AND U_BN IN (SELECT U_BookingNumber FROM TMP_TARGET_$serial WITH (NOLOCK));
 
 
     UPDATE [@FirstratesTP] 
     SET U_AddlAmount = NULL
-    WHERE U_AddlAmount = 'NaN' AND U_BN IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK));
+    WHERE U_AddlAmount = 'NaN' AND U_BN IN (SELECT U_BookingNumber FROM TMP_TARGET_$serial WITH (NOLOCK));
 
 
     DROP TABLE IF EXISTS TMP_UPDATE_TP_FORMULA_$serial
@@ -2816,10 +2816,10 @@ PRINT 'CREATING TARGETS'
         LEFT JOIN OCRD T4 ON pod.U_SAPClient = T4.CardCode
         LEFT JOIN [dbo].[@PCTP_PRICING] pricing ON T0.U_BookingId = pricing.U_BookingId
         LEFT JOIN OCRD trucker ON pod.U_SAPTrucker = trucker.CardCode
-    WHERE T0.U_BookingId IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK));
+    WHERE T0.U_BookingId IN (SELECT U_BookingNumber FROM TMP_TARGET_$serial WITH (NOLOCK));
 
 
-    DELETE FROM TP_FORMULA WHERE U_BookingId IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK));
+    DELETE FROM TP_FORMULA WHERE U_BookingId IN (SELECT U_BookingNumber FROM TMP_TARGET_$serial WITH (NOLOCK));
 
 
     INSERT INTO TP_FORMULA
@@ -2832,7 +2832,7 @@ PRINT 'CREATING TARGETS'
     DROP TABLE IF EXISTS TMP_UPDATE_TP_FORMULA_$serial;
 
 
-DROP TABLE IF EXISTS TMP_TARGET;
+DROP TABLE IF EXISTS TMP_TARGET_$serial;
 --     PRINT 'Last Statement in the TRY block'
 --     COMMIT TRAN
 -- END TRY

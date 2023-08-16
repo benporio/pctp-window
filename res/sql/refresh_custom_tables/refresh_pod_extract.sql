@@ -1,9 +1,9 @@
 PRINT 'CREATING TARGETS'
     
-    DROP TABLE IF EXISTS TMP_TARGET
+    DROP TABLE IF EXISTS TMP_TARGET_$serial
     SELECT
 	    T0.U_BookingNumber
-    INTO TMP_TARGET
+    INTO TMP_TARGET_$serial
     FROM [dbo].[@PCTP_POD] T0  WITH (NOLOCK)
     WHERE T0.U_BookingNumber IN ($bookingIds)
 
@@ -431,10 +431,10 @@ PRINT 'CREATING TARGETS'
         -- LEFT JOIN (SELECT DocEntry, MIN(ItemCode) AS ItemCode FROM INV1 GROUP BY DocEntry, ItemCode) ARLine ON ARLine.ItemCode = T0.U_BookingNumber
         -- LEFT JOIN (SELECT DocEntry, MIN(U_BillingStatus) AS U_BillingStatus, MIN(DocNum) AS DocNum FROM OINV GROUP BY DocEntry) ARHeader ON ARHeader.DocEntry = ARLine.DocEntry
         LEFT JOIN TP_FORMULA TF ON TF.U_BookingId = T0.U_BookingNumber
-    WHERE T0.U_BookingNumber IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK))
+    WHERE T0.U_BookingNumber IN (SELECT U_BookingNumber FROM TMP_TARGET_$serial WITH (NOLOCK))
 
 
-    DELETE FROM POD_EXTRACT WHERE U_BookingNumber IN (SELECT U_BookingNumber FROM TMP_TARGET WITH (NOLOCK))
+    DELETE FROM POD_EXTRACT WHERE U_BookingNumber IN (SELECT U_BookingNumber FROM TMP_TARGET_$serial WITH (NOLOCK))
 
 
     INSERT INTO POD_EXTRACT
@@ -549,7 +549,7 @@ PRINT 'CREATING TARGETS'
     DROP TABLE IF EXISTS TMP_UPDATE_POD_EXTRACT_$serial
 
 
-DROP TABLE IF EXISTS TMP_TARGET;
+DROP TABLE IF EXISTS TMP_TARGET_$serial;
 --     PRINT 'Last Statement in the TRY block'
 --     COMMIT TRAN
 -- END TRY
