@@ -15,10 +15,12 @@ class PctpUser extends ASerializableClass
         $loggedInUserCode = $_SESSION['SESS_USERCODE'];
         $result = SAPAccessManager::getInstance()->getRows(
         "   SELECT
+                SUMMARY,
                 POD,
                 BILLING,
                 TP,
-                PRICING
+                PRICING,
+                TREASURY
             FROM [USER-COMMON].[dbo].[@OUSR]
             WHERE UserCode = '$loggedInUserCode'
         ");
@@ -30,12 +32,12 @@ class PctpUser extends ASerializableClass
             $this->pricingAccess = TabAccessType::NONE;
             $this->treasuryAccess = TabAccessType::NONE;
         } else {
-            $this->summaryAccess = TabAccessType::FULL;
+            $this->summaryAccess = TabAccessType::tryFrom(strtoupper($result[0]->SUMMARY));
             $this->podAccess = TabAccessType::tryFrom(strtoupper($result[0]->POD));
             $this->billingAccess = TabAccessType::tryFrom(strtoupper($result[0]->BILLING));
             $this->tpAccess = TabAccessType::tryFrom(strtoupper($result[0]->TP));
             $this->pricingAccess = TabAccessType::tryFrom(strtoupper($result[0]->PRICING));
-            $this->treasuryAccess = TabAccessType::FULL;
+            $this->treasuryAccess = TabAccessType::tryFrom(strtoupper($result[0]->TREASURY));
         }
     }
 }
