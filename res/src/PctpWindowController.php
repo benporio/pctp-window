@@ -257,7 +257,7 @@ class PctpWindowController extends ASerializableClass
         try {
             $this->log('refreshExtractTables[START]', $data);
             if (isset($data->bookingIds) && (bool)$data->bookingIds && is_array($data->bookingIds)) {
-                $bookingIds = array_map(fn($z) => (object)['BookingId' => $z], $data->bookingIds);
+                $bookingIds = array_map(fn($z) => (object)['BookingId' => trim($z)], $data->bookingIds);
                 $this->model->summaryTab->preFetchProcess($bookingIds, $this->model->getSettings()->preFetchRefreshScripts);
             }
             $return = [
