@@ -1184,6 +1184,7 @@ class PctpWindowView extends AbsWebSocketCaller {
         this.#viewOptions = {};
         this.#config = {};
         this.relatedUpdates = [];
+        this.user = {};
         this.rowIndexCodePairs = {
             summary: [],
             pod: [],
@@ -1289,6 +1290,7 @@ class PctpWindowView extends AbsWebSocketCaller {
         this.#viewOptions = data.viewOptions;
         this.#config = data.config;
         this.#userInfo = data.userInfo;
+        this.user = data.user;
         if (this.doConstantsNeedRefresh) {
             this.log('constants have been refreshed')
             this.#constants = data.constants;
@@ -1296,6 +1298,7 @@ class PctpWindowView extends AbsWebSocketCaller {
             setTimeout(() => { p.doConstantsNeedRefresh = true; p.log('doConstantsNeedRefresh has now been set to true') }, this.#viewOptions.constants_refresh_waiting_time)
         }
         this.#realtimeDataRowController = this.getConfig('enable_data_row_realtime', false) ? new RealtimeDataRowController(`ws://${window.location.hostname}:8000/`, data.userInfo, data.viewOptions) : null;
+        setScreenLoading(false)
     }
     getConfig(configName, defaultValue) {
         return this.#config[configName] ?? defaultValue;
@@ -1601,6 +1604,7 @@ class PctpWindowView extends AbsWebSocketCaller {
     }
     async reloadTab(arg, callback = null) {
         if (!$('#resultDiv').find(`div[data-pctp-model="${arg.tab}"]`).length) return;
+        setScreenLoading(true, false, '', true)
         $(`#${arg.tab}tabpaneloading`).removeClass('d-none')
         if (!$(`#${arg.tab}excel`).hasClass('d-none')
             && !$(`#${arg.tab}excel`).find('.fa-file-excel').css('animation').includes('color-change')) $(`#${arg.tab}excel`).addClass('d-none');
@@ -3378,3 +3382,4 @@ function promptMessage1Button(title, message, button1Label, info = '') {
 }
 
 const p = new PctpWindowView();
+setScreenLoading(true, false, '', true)

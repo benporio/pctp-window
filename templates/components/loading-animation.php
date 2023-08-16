@@ -110,4 +110,4 @@
      */
     }
 </style>
-<div id="loadingAnimation" class="spinner"></div>
+<div id="loadingAnimation" class="spinner d-none"></div>
