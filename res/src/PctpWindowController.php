@@ -42,6 +42,7 @@ class PctpWindowController extends ASerializableClass
         $hybridHeader['columnDefinitions'] = $this->model->getColumnDefinitions();
         $hybridHeader['dropDownOptions'] = $this->model->getSettings()->dropDownOptions;
         $hybridHeader['constants'] = $this->model->getSettings()->constants;
+        $hybridHeader['user'] = $this->model->user;
         $hybridHeader['userInfo'] = [
             'sessionId' => session_id(),
             'userName' => $_SESSION['SESS_NAME'],
