@@ -137,6 +137,9 @@ class PricingTab extends APctpWindowTab
             'VarTP',
             'PODDocNum',
         ];
+        $this->searchableFields = [
+            'PODDocNum',
+        ];
         $this->disableSomeFields = [
             'DisableFieldsForBilling' => [
                 'GrossClientRates',
