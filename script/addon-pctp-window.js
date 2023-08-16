@@ -6,11 +6,11 @@ $(() => {
     initialize((data, callback) => {
         renderHeader(data);
         p.initialize(data);
-        p.reloadTab({tab: 'summary'});
-        p.reloadTab({tab: 'pod'});
-        p.reloadTab({tab: 'billing'});
-        p.reloadTab({tab: 'tp'});
-        p.reloadTab({tab: 'pricing'});
+        p.reloadTab({tab: 'summary'}, callback);
+        p.reloadTab({tab: 'pod'}, callback);
+        p.reloadTab({tab: 'billing'}, callback);
+        p.reloadTab({tab: 'tp'}, callback);
+        p.reloadTab({tab: 'pricing'}, callback);
         p.reloadTab({tab: 'treasury'}, callback);
     });
 

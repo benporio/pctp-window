@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../../res/inc/autoload.php';
 $user = PctpWindowFactory::getObject('PctpWindowController')->model->user;
+$hasActiveTab = false;
+$setActiveTab = '';
 ?>
 
 <div class="row d-flex align-items-center mt-5">
@@ -8,7 +10,7 @@ $user = PctpWindowFactory::getObject('PctpWindowController')->model->user;
         <ul class="nav nav-tabs pt-2" id="pctpwindowtabs" role="tablist">
             <?php if ($user->summaryAccess === TabAccessType::FULL || $user->summaryAccess === TabAccessType::VIEW) : ?>
                 <li class="nav-item">
-                    <a class="nav-link active" id="summarytab" data-toggle="tab" href="#summarytabpane" role="tab" aria-controls="summarytabpane" aria-selected="true" style="color: black; font-weight:bold">
+                    <a class="nav-link <?= !$hasActiveTab ? 'active' : '' ?>" id="summarytab" data-toggle="tab" href="#summarytabpane" role="tab" aria-controls="summarytabpane" aria-selected="true" style="color: black; font-weight:bold">
                         <div class="row">
                             <div class="col-auto">SUMMARY</div>
                             <div id="summaryloading" class="col-auto text-right loading ml-auto">
@@ -20,10 +22,16 @@ $user = PctpWindowFactory::getObject('PctpWindowController')->model->user;
                         </div>
                     </a>
                 </li>
+                <?php 
+                    if (!$hasActiveTab) {
+                        $setActiveTab = 'SUMMARY';
+                        $hasActiveTab = true; 
+                    }
+                ?>
             <?php endif ?>
             <?php if ($user->podAccess === TabAccessType::FULL || $user->podAccess === TabAccessType::VIEW) : ?>
                 <li class="nav-item">
-                    <a class="nav-link" id="podtab" data-toggle="tab" href="#podtabpane" role="tab" aria-controls="podtabpane" aria-selected="false" style="color: black; font-weight:bold">
+                    <a class="nav-link <?= !$hasActiveTab ? 'active' : '' ?>" id="podtab" data-toggle="tab" href="#podtabpane" role="tab" aria-controls="podtabpane" aria-selected="false" style="color: black; font-weight:bold">
                         <div class="row">
                             <div class="col-auto">POD</div>
                             <div id="podloading" class="col-auto text-right loading ml-auto">
@@ -35,10 +43,16 @@ $user = PctpWindowFactory::getObject('PctpWindowController')->model->user;
                         </div>
                     </a>
                 </li>
+                <?php 
+                    if (!$hasActiveTab) {
+                        $setActiveTab = 'POD';
+                        $hasActiveTab = true; 
+                    }
+                ?>
             <?php endif ?>
             <?php if ($user->billingAccess === TabAccessType::FULL || $user->billingAccess === TabAccessType::VIEW) : ?>
                 <li class="nav-item">
-                    <a class="nav-link" id="billingtab" data-toggle="tab" href="#billingtabpane" role="tab" aria-controls="billingtabpane" aria-selected="false" style="color: black; font-weight:bold">
+                    <a class="nav-link <?= !$hasActiveTab ? 'active' : '' ?>" id="billingtab" data-toggle="tab" href="#billingtabpane" role="tab" aria-controls="billingtabpane" aria-selected="false" style="color: black; font-weight:bold">
                         <div class="row">
                             <div class="col-auto">BILLING</div>
                             <div id="billingloading" class="col-auto text-right loading ml-auto">
@@ -50,10 +64,16 @@ $user = PctpWindowFactory::getObject('PctpWindowController')->model->user;
                         </div>
                     </a>
                 </li>
+                <?php 
+                    if (!$hasActiveTab) {
+                        $setActiveTab = 'BILLING';
+                        $hasActiveTab = true; 
+                    }
+                ?>
             <?php endif ?>
             <?php if ($user->tpAccess === TabAccessType::FULL || $user->tpAccess === TabAccessType::VIEW) : ?>
                 <li class="nav-item">
-                    <a class="nav-link" id="tptab" data-toggle="tab" href="#tptabpane" role="tab" aria-controls="tptabpane" aria-selected="false" style="color: black; font-weight:bold">
+                    <a class="nav-link <?= !$hasActiveTab ? 'active' : '' ?>" id="tptab" data-toggle="tab" href="#tptabpane" role="tab" aria-controls="tptabpane" aria-selected="false" style="color: black; font-weight:bold">
                         <div class="row">
                             <div class="col-auto">TP</div>
                             <div id="tploading" class="col-auto text-right loading ml-auto">
@@ -65,10 +85,16 @@ $user = PctpWindowFactory::getObject('PctpWindowController')->model->user;
                         </div>
                     </a>
                 </li>
+                <?php 
+                    if (!$hasActiveTab) {
+                        $setActiveTab = 'TP';
+                        $hasActiveTab = true; 
+                    }
+                ?>
             <?php endif ?>
             <?php if ($user->pricingAccess === TabAccessType::FULL || $user->pricingAccess === TabAccessType::VIEW) : ?>
                 <li class="nav-item">
-                    <a class="nav-link" id="pricingtab" data-toggle="tab" href="#pricingtabpane" role="tab" aria-controls="pricingtabpane" aria-selected="false" style="color: black; font-weight:bold">
+                    <a class="nav-link <?= !$hasActiveTab ? 'active' : '' ?>" id="pricingtab" data-toggle="tab" href="#pricingtabpane" role="tab" aria-controls="pricingtabpane" aria-selected="false" style="color: black; font-weight:bold">
                         <div class="row">
                             <div class="col-auto">PRICING</div>
                             <div id="pricingloading" class="col-auto text-right loading ml-auto">
@@ -80,10 +106,16 @@ $user = PctpWindowFactory::getObject('PctpWindowController')->model->user;
                         </div>
                     </a>
                 </li>
+                <?php 
+                    if (!$hasActiveTab) {
+                        $setActiveTab = 'PRICING';
+                        $hasActiveTab = true; 
+                    }
+                ?>
             <?php endif ?>
             <?php if ($user->treasuryAccess === TabAccessType::FULL || $user->treasuryAccess === TabAccessType::VIEW) : ?>
                 <li class="nav-item">
-                    <a class="nav-link" id="treasurytab" data-toggle="tab" href="#treasurytabpane" role="tab" aria-controls="treasurytabpane" aria-selected="false" style="color: black; font-weight:bold">
+                    <a class="nav-link <?= !$hasActiveTab ? 'active' : '' ?>" id="treasurytab" data-toggle="tab" href="#treasurytabpane" role="tab" aria-controls="treasurytabpane" aria-selected="false" style="color: black; font-weight:bold">
                         <div class="row">
                             <div class="col-auto">TREASURY</div>
                             <div id="treasuryloading" class="col-auto text-right loading ml-auto">
@@ -95,13 +127,19 @@ $user = PctpWindowFactory::getObject('PctpWindowController')->model->user;
                         </div>
                     </a>
                 </li>
+                <?php 
+                    if (!$hasActiveTab) {
+                        $setActiveTab = 'TREASURY';
+                        $hasActiveTab = true; 
+                    }
+                ?>
             <?php endif ?>
         </ul>
     </div>
 </div>
 <div id="resultDiv" class="tab-content col-12 p-0 m-0">
     <?php if ($user->summaryAccess === TabAccessType::FULL || $user->summaryAccess === TabAccessType::VIEW) : ?>
-        <div class="tab-pane fade show active scrollableDiv" data-pctp-model="summary" id="summarytabpane" role="tabpanel" aria-labelledby="summarytabpane" style="min-height: 0px; max-height: 750px; overflow: auto;">
+        <div class="tab-pane fade <?= $setActiveTab === 'SUMMARY' ? 'show active' : '' ?> scrollableDiv" data-pctp-model="summary" id="summarytabpane" role="tabpanel" aria-labelledby="summarytabpane" style="min-height: 0px; max-height: 750px; overflow: auto;">
             <div id="summarytabpaneloading" style="padding-top: 10px;" class="text-center">
                 <h4>LOADING ROWS PLEASE WAIT...</h4>
             </div>
@@ -110,7 +148,7 @@ $user = PctpWindowFactory::getObject('PctpWindowController')->model->user;
         </div>
     <?php endif ?>
     <?php if ($user->podAccess === TabAccessType::FULL || $user->podAccess === TabAccessType::VIEW) : ?>
-        <div class="tab-pane fade scrollableDiv" data-pctp-model="pod" id="podtabpane" role="tabpanel" aria-labelledby="podtabpane" style="min-height: 0px; max-height: 750px; overflow: auto;">
+        <div class="tab-pane fade <?= $setActiveTab === 'POD' ? 'show active' : '' ?> scrollableDiv" data-pctp-model="pod" id="podtabpane" role="tabpanel" aria-labelledby="podtabpane" style="min-height: 0px; max-height: 750px; overflow: auto;">
             <div id="podtabpaneloading" style="padding-top: 10px;" class="text-center">
                 <h4>LOADING ROWS PLEASE WAIT...</h4>
             </div>
@@ -119,7 +157,7 @@ $user = PctpWindowFactory::getObject('PctpWindowController')->model->user;
         </div>
     <?php endif ?>
     <?php if ($user->billingAccess === TabAccessType::FULL || $user->billingAccess === TabAccessType::VIEW) : ?>
-        <div class="tab-pane fade scrollableDiv" data-pctp-model="billing" id="billingtabpane" role="tabpanel" aria-labelledby="billingtabpane" style="min-height: 0px; max-height: 750px; overflow: auto;">
+        <div class="tab-pane fade <?= $setActiveTab === 'BILLING' ? 'show active' : '' ?> scrollableDiv" data-pctp-model="billing" id="billingtabpane" role="tabpanel" aria-labelledby="billingtabpane" style="min-height: 0px; max-height: 750px; overflow: auto;">
             <div id="billingtabpaneloading" style="padding-top: 10px;" class="text-center">
                 <h4>LOADING ROWS PLEASE WAIT...</h4>
             </div>
@@ -128,7 +166,7 @@ $user = PctpWindowFactory::getObject('PctpWindowController')->model->user;
         </div>
     <?php endif ?>
     <?php if ($user->tpAccess === TabAccessType::FULL || $user->tpAccess === TabAccessType::VIEW) : ?>
-        <div class="tab-pane fade scrollableDiv" data-pctp-model="tp" id="tptabpane" role="tabpanel" aria-labelledby="tptabpane" style="min-height: 0px; max-height: 750px; overflow: auto;">
+        <div class="tab-pane fade <?= $setActiveTab === 'TP' ? 'show active' : '' ?> scrollableDiv" data-pctp-model="tp" id="tptabpane" role="tabpanel" aria-labelledby="tptabpane" style="min-height: 0px; max-height: 750px; overflow: auto;">
             <div id="tptabpaneloading" style="padding-top: 10px;" class="text-center">
                 <h4>LOADING ROWS PLEASE WAIT...</h4>
             </div>
@@ -137,7 +175,7 @@ $user = PctpWindowFactory::getObject('PctpWindowController')->model->user;
         </div>
     <?php endif ?>
     <?php if ($user->pricingAccess === TabAccessType::FULL || $user->pricingAccess === TabAccessType::VIEW) : ?>
-        <div class="tab-pane fade scrollableDiv" data-pctp-model="pricing" id="pricingtabpane" role="tabpanel" aria-labelledby="pricingtabpane" style="min-height: 0px; max-height: 750px; overflow: auto;">
+        <div class="tab-pane fade <?= $setActiveTab === 'PRICING' ? 'show active' : '' ?> scrollableDiv" data-pctp-model="pricing" id="pricingtabpane" role="tabpanel" aria-labelledby="pricingtabpane" style="min-height: 0px; max-height: 750px; overflow: auto;">
             <div id="pricingtabpaneloading" style="padding-top: 10px;" class="text-center">
                 <h4>LOADING ROWS PLEASE WAIT...</h4>
             </div>
@@ -146,7 +184,7 @@ $user = PctpWindowFactory::getObject('PctpWindowController')->model->user;
         </div>
     <?php endif ?>
     <?php if ($user->treasuryAccess === TabAccessType::FULL || $user->treasuryAccess === TabAccessType::VIEW) : ?>
-        <div class="tab-pane fade scrollableDiv" data-pctp-model="treasury" id="treasurytabpane" role="tabpanel" aria-labelledby="treasurytabpane" style="min-height: 0px; max-height: 750px; overflow: auto;">
+        <div class="tab-pane fade <?= $setActiveTab === 'TREASURY' ? 'show active' : '' ?> scrollableDiv" data-pctp-model="treasury" id="treasurytabpane" role="tabpanel" aria-labelledby="treasurytabpane" style="min-height: 0px; max-height: 750px; overflow: auto;">
             <div id="treasurytabpaneloading" style="padding-top: 10px;" class="text-center">
                 <h4>LOADING ROWS PLEASE WAIT...</h4>
             </div>
