@@ -1,11 +1,23 @@
 PRINT 'CREATING CONDITIONAL TARGETS'
     
     DROP TABLE IF EXISTS TMP_TARGET_$serial
+    -- SELECT
+	--     T0.U_BookingNumber
+    -- INTO TMP_TARGET_$serial
+    -- FROM [dbo].[@PCTP_POD] T0  WITH (NOLOCK)
+    -- WHERE T0.U_BookingNumber IN ($bookingIds);
+
+    -----> issue #20
     SELECT
-	    T0.U_BookingNumber
+        BE.U_BookingId AS U_BookingNumber
     INTO TMP_TARGET_$serial
-    FROM [dbo].[@PCTP_POD] T0  WITH (NOLOCK)
-    WHERE T0.U_BookingNumber IN ($bookingIds);
+    FROM SUMMARY_EXTRACT SE
+    LEFT JOIN BILLING_EXTRACT BE ON BE.U_BookingId = SE.U_BookingNumber
+    WHERE (BE.U_BillingStatus <> SE.U_BillingStatus AND REPLACE(BE.U_BillingStatus, ' ', '') <> REPLACE(SE.U_BillingStatus, ' ', ''))
+    OR BE.U_InvoiceNo <> SE.U_InvoiceNo
+    OR BE.U_PODSONum <> SE.U_PODSONum
+    OR BE.U_DocNum <> SE.U_ARDocNum
+    ORDER BY BE.U_BookingId DESC
 
 -------->>TP_FORMULA
 PRINT 'UPDATING [@FirstratesTP]'
