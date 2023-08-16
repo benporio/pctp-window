@@ -7,7 +7,8 @@ PRINT 'CREATING CONDITIONAL TARGETS'
     FROM (
         -----> issue #20
         SELECT
-            BE.U_BookingId AS U_BookingNumber
+            BE.U_BookingId AS U_BookingNumber,
+            'SUMMARY-BILLING-DATA-INCONSISTENCY' AS ISSUE
         FROM SUMMARY_EXTRACT SE
         LEFT JOIN BILLING_EXTRACT BE ON BE.U_BookingId = SE.U_BookingNumber
         WHERE (BE.U_BillingStatus <> SE.U_BillingStatus AND REPLACE(BE.U_BillingStatus, ' ', '') <> REPLACE(SE.U_BillingStatus, ' ', ''))
@@ -18,14 +19,16 @@ PRINT 'CREATING CONDITIONAL TARGETS'
         UNION
         -----> issue #22
         SELECT
-            T0.U_BookingNumber
+            T0.U_BookingNumber,
+            'TP-BILLING-VERIFIED-NOT-REFLECTED' AS ISSUE
         FROM [dbo].[@PCTP_POD] T0
         WHERE 1=1
         AND (CAST(T0.U_PODStatusDetail as nvarchar(max)) LIKE '%Verified%' OR CAST(T0.U_PODStatusDetail as nvarchar(max)) LIKE '%ForAdvanceBilling%')
         AND T0.U_BookingNumber NOT IN (SELECT U_BookingId FROM BILLING_EXTRACT)
         UNION
         SELECT
-            T0.U_BookingNumber
+            T0.U_BookingNumber,
+            'TP-BILLING-VERIFIED-NOT-REFLECTED' AS ISSUE
         FROM [dbo].[@PCTP_POD] T0
         WHERE 1=1
         AND (CAST(T0.U_PODStatusDetail as nvarchar(max)) LIKE '%Verified%')
@@ -34,7 +37,8 @@ PRINT 'CREATING CONDITIONAL TARGETS'
         UNION
         -----> issue #23
         SELECT
-            BE.U_BookingId AS U_BookingNumber
+            BE.U_BookingId AS U_BookingNumber,
+            'BILLING-TP-PRICING-DATA-INCONSISTENCY' AS ISSUE
         FROM BILLING_EXTRACT BE
         LEFT JOIN PRICING_EXTRACT PE ON PE.U_BookingId = BE.U_BookingId
         WHERE (
@@ -56,7 +60,8 @@ PRINT 'CREATING CONDITIONAL TARGETS'
         )
         UNION
         SELECT
-            TE.U_BookingId AS U_BookingNumber
+            TE.U_BookingId AS U_BookingNumber,
+            'BILLING-TP-PRICING-DATA-INCONSISTENCY' AS ISSUE
         FROM TP_EXTRACT TE
         LEFT JOIN PRICING_EXTRACT PE ON PE.U_BookingId = TE.U_BookingId
         WHERE (
@@ -117,7 +122,10 @@ PRINT 'CREATING CONDITIONAL TARGETS'
             ))
         )
         
-    ) CONDITIONAL_TARGETS;
+    ) CONDITIONAL_TARGETS
+    -- LEFT JOIN (SELECT U_BookingNumber, U_BookingDate FROM [@PCTP_POD]) X ON X.U_BookingNumber = CONDITIONAL_TARGETS.U_BookingNumber
+    -- ORDER BY U_BookingDate DESC, ISSUE ASC
+    ;
 
 -------->>TP_FORMULA
 PRINT 'UPDATING [@FirstratesTP]'
