@@ -30,6 +30,93 @@ PRINT 'CREATING CONDITIONAL TARGETS'
         WHERE 1=1
         AND (CAST(T0.U_PODStatusDetail as nvarchar(max)) LIKE '%Verified%')
         AND T0.U_BookingNumber NOT IN (SELECT U_BookingId FROM TP_EXTRACT)
+
+        UNION
+        -----> issue #23
+        SELECT
+            BE.U_BookingId AS U_BookingNumber
+        FROM BILLING_EXTRACT BE
+        LEFT JOIN PRICING_EXTRACT PE ON PE.U_BookingId = BE.U_BookingId
+        WHERE (
+            PE.U_GrossClientRates <> BE.U_GrossInitialRate
+            OR PE.U_Demurrage <> BE.U_Demurrage
+            OR PE.U_TotalAddtlCharges <> BE.U_AddCharges
+            OR ((
+                    (PE.U_GrossClientRates IS NOT NULL AND PE.U_GrossClientRates <> 0)
+                    AND (BE.U_GrossInitialRate IS NULL OR BE.U_GrossInitialRate = 0)
+                )
+                OR (
+                    (PE.U_Demurrage IS NOT NULL AND PE.U_Demurrage <> 0)
+                    AND (BE.U_Demurrage IS NULL OR BE.U_Demurrage = 0)
+                )
+                OR (
+                    (PE.U_TotalAddtlCharges IS NOT NULL AND PE.U_TotalAddtlCharges <> 0)
+                    AND (BE.U_AddCharges IS NULL OR BE.U_AddCharges = 0)
+            ))
+        )
+        UNION
+        SELECT
+            TE.U_BookingId AS U_BookingNumber
+        FROM TP_EXTRACT TE
+        LEFT JOIN PRICING_EXTRACT PE ON PE.U_BookingId = TE.U_BookingId
+        WHERE (
+            PE.U_GrossTruckerRates <> TE.U_GrossTruckerRates
+            OR PE.U_GrossTruckerRatesTax <> TE.U_GrossTruckerRatesN
+            OR PE.U_RateBasisT <> TE.U_RateBasis
+            OR PE.U_Demurrage2 <> TE.U_Demurrage
+            OR PE.U_AddtlDrop2 <> TE.U_AddtlDrop
+            OR PE.U_BoomTruck2 <> TE.U_BoomTruck
+            OR PE.U_Manpower2 <> TE.U_Manpower
+            OR PE.U_Backload2 <> TE.U_BackLoad
+            OR PE.U_totalAddtlCharges2 <> TE.U_Addtlcharges
+            OR PE.U_Demurrage3 <> TE.U_DemurrageN
+            OR PE.U_AddtlCharges <> TE.U_AddtlChargesN
+            OR ((
+                    (PE.U_GrossTruckerRates IS NOT NULL AND PE.U_GrossTruckerRates <> 0)
+                    AND (TE.U_GrossTruckerRates IS NULL OR TE.U_GrossTruckerRates = 0)
+                )
+                OR (
+                    (PE.U_GrossTruckerRatesTax IS NOT NULL AND PE.U_GrossTruckerRatesTax <> 0)
+                    AND (TE.U_GrossTruckerRatesN IS NULL OR TE.U_GrossTruckerRatesN = 0)
+                )
+                OR (
+                    (PE.U_RateBasisT IS NOT NULL AND PE.U_RateBasisT <> '')
+                    AND (TE.U_RateBasis IS NULL OR TE.U_RateBasis = '')
+                )
+                OR (
+                    (PE.U_Demurrage2 IS NOT NULL AND PE.U_Demurrage2 <> 0)
+                    AND (TE.U_Demurrage IS NULL OR TE.U_Demurrage = 0)
+                )
+                OR (
+                    (PE.U_AddtlDrop2 IS NOT NULL AND PE.U_AddtlDrop2 <> 0)
+                    AND (TE.U_AddtlDrop IS NULL OR TE.U_AddtlDrop = 0)
+                )
+                OR (
+                    (PE.U_BoomTruck2 IS NOT NULL AND PE.U_BoomTruck2 <> 0)
+                    AND (TE.U_BoomTruck IS NULL OR TE.U_BoomTruck = 0)
+                )
+                OR (
+                    (PE.U_Manpower2 IS NOT NULL AND PE.U_Manpower2 <> 0)
+                    AND (TE.U_Manpower IS NULL OR TE.U_Manpower = 0)
+                )
+                OR (
+                    (PE.U_Backload2 IS NOT NULL AND PE.U_Backload2 <> 0)
+                    AND (TE.U_BackLoad IS NULL OR TE.U_BackLoad = 0)
+                )
+                OR (
+                    (PE.U_totalAddtlCharges2 IS NOT NULL AND PE.U_totalAddtlCharges2 <> 0)
+                    AND (TE.U_Addtlcharges IS NULL OR TE.U_Addtlcharges = 0)
+                )
+                OR (
+                    (PE.U_Demurrage3 IS NOT NULL AND PE.U_Demurrage3 <> 0)
+                    AND (TE.U_DemurrageN IS NULL OR TE.U_DemurrageN = 0)
+                )
+                OR (
+                    (PE.U_AddtlCharges IS NOT NULL AND PE.U_AddtlCharges <> 0)
+                    AND (TE.U_AddtlChargesN IS NULL OR TE.U_AddtlChargesN = 0)
+            ))
+        )
+        
     ) CONDITIONAL_TARGETS;
 
 -------->>TP_FORMULA
