@@ -299,6 +299,29 @@
   </div>
     <!-- Loading Modal -->
 
+     <!-- Not Valid BN for PV Modal -->
+     <div class="modal fade" id="notValidBNForPV" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" data-backdrop="false" >
+      <div class="modal-dialog modal-xl" role="document" style="width:400px !important;" >
+        <!--Content-->
+        <div class=" modal-content" >
+          <!--Header-->
+          <div class="modal-header "  style="background-color: #A8A8A8; border-bottom-width: thick; border-color: #f0ad4e;">
+          </div>
+          <!--Body-->
+    
+        <div class="text-center  " >
+          <h6 id="bnError"></h6>
+        </div>  
+        <!--Footer-->
+          <div class="modal-footer"  style="background-color: #A8A8A8; border-bottom-width: thick; border-color: #f0ad4e; padding: 7px !important">
+          </div> 
+        
+        <!--/.Content-->
+      </div>
+    </div>
+  </div>
+    <!-- Not Valid BN for PV Modal -->
+
   <!-- CashTally Modal -->
   <div class="modal fade" id="tallyModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" >
     <div class="modal-dialog modal-xl" role="document" style="width:100%">
