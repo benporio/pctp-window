@@ -1,5 +1,5 @@
 SELECT
-    BE.U_BookingId,
+    SE.U_BookingNumber,
     CONCAT(
         CASE
             WHEN BE.U_BillingStatus <> SE.U_BillingStatus
@@ -159,17 +159,29 @@ SELECT
     ) AS SUMMARY_ARDocNum
 FROM SUMMARY_EXTRACT SE
 LEFT JOIN BILLING_EXTRACT BE ON BE.U_BookingId = SE.U_BookingNumber
-WHERE (BE.U_BillingStatus <> SE.U_BillingStatus AND REPLACE(BE.U_BillingStatus, ' ', '') <> REPLACE(SE.U_BillingStatus, ' ', ''))
+WHERE (
+    (BE.U_BillingStatus <> SE.U_BillingStatus AND REPLACE(BE.U_BillingStatus, ' ', '') <> REPLACE(SE.U_BillingStatus, ' ', '')) 
+    OR (
+        (
+            BE.U_BillingStatus IS NOT NULL AND REPLACE(BE.U_BillingStatus, ' ', '') <> '' 
+            AND (SE.U_BillingStatus IS NULL OR REPLACE(SE.U_BillingStatus, ' ', '') = '')
+        )
+        OR (
+            SE.U_BillingStatus IS NOT NULL AND REPLACE(SE.U_BillingStatus, ' ', '') <> '' 
+            AND (BE.U_BillingStatus IS NULL OR REPLACE(BE.U_BillingStatus, ' ', '') = '')
+        )
+    )
+)
 OR BE.U_InvoiceNo <> SE.U_InvoiceNo
 OR BE.U_PODSONum <> SE.U_PODSONum
 OR BE.U_DocNum <> SE.U_ARDocNum
-ORDER BY BE.U_BookingId DESC
+ORDER BY SE.U_BookingNumber DESC
 
 
 -----> OTHER FIXES FOR REMAINING DATA ISSUE
 DROP TABLE IF EXISTS TMP_TARGET_ISSUE20;
 SELECT
-    BE.U_BookingId AS U_BookingNumber,
+    SE.U_BookingNumber,
     CONCAT(
         CASE
             WHEN BE.U_BillingStatus <> SE.U_BillingStatus
@@ -330,7 +342,19 @@ SELECT
 INTO TMP_TARGET_ISSUE20 
 FROM SUMMARY_EXTRACT SE
 LEFT JOIN BILLING_EXTRACT BE ON BE.U_BookingId = SE.U_BookingNumber
-WHERE (BE.U_BillingStatus <> SE.U_BillingStatus AND REPLACE(BE.U_BillingStatus, ' ', '') <> REPLACE(SE.U_BillingStatus, ' ', ''))
+WHERE (
+    (BE.U_BillingStatus <> SE.U_BillingStatus AND REPLACE(BE.U_BillingStatus, ' ', '') <> REPLACE(SE.U_BillingStatus, ' ', '')) 
+    OR (
+        (
+            BE.U_BillingStatus IS NOT NULL AND REPLACE(BE.U_BillingStatus, ' ', '') <> '' 
+            AND (SE.U_BillingStatus IS NULL OR REPLACE(SE.U_BillingStatus, ' ', '') = '')
+        )
+        OR (
+            SE.U_BillingStatus IS NOT NULL AND REPLACE(SE.U_BillingStatus, ' ', '') <> '' 
+            AND (BE.U_BillingStatus IS NULL OR REPLACE(BE.U_BillingStatus, ' ', '') = '')
+        )
+    )
+)
 OR BE.U_InvoiceNo <> SE.U_InvoiceNo
 OR BE.U_PODSONum <> SE.U_PODSONum
 OR BE.U_DocNum <> SE.U_ARDocNum;
@@ -342,7 +366,8 @@ WHERE TMP.U_BookingNumber = [@PCTP_BILLING].U_BookingId
 AND TMP.SE_BillingStatus IN ('SenttoBT', 'Sent to BT')
 AND TMP.SUMMARY_BillingStatus IN ('SenttoBT', 'Sent to BT')
 AND (TMP.BE_BillingStatus IS NULL OR REPLACE(TMP.BE_BillingStatus, ' ', '') = '')
-AND (TMP.BILLING_BillingStatus IS NULL OR REPLACE(TMP.BILLING_BillingStatus, ' ', '') = '');
+-- AND (TMP.BILLING_BillingStatus IS NULL OR REPLACE(TMP.BILLING_BillingStatus, ' ', '') = '')
+;
 
 UPDATE BILLING_EXTRACT
 SET U_BillingStatus = TMP.SE_BillingStatus
@@ -351,7 +376,8 @@ WHERE TMP.U_BookingNumber = BILLING_EXTRACT.U_BookingId
 AND TMP.SE_BillingStatus IN ('SenttoBT', 'Sent to BT')
 AND TMP.SUMMARY_BillingStatus IN ('SenttoBT', 'Sent to BT')
 AND (TMP.BE_BillingStatus IS NULL OR REPLACE(TMP.BE_BillingStatus, ' ', '') = '')
-AND (TMP.BILLING_BillingStatus IS NULL OR REPLACE(TMP.BILLING_BillingStatus, ' ', '') = '');
+-- AND (TMP.BILLING_BillingStatus IS NULL OR REPLACE(TMP.BILLING_BillingStatus, ' ', '') = '')
+;
 
 UPDATE [@PCTP_POD] 
 SET U_BillingStatus = TMP.BE_BillingStatus
@@ -360,7 +386,8 @@ WHERE TMP.U_BookingNumber = [@PCTP_POD].U_BookingNumber
 AND TMP.BE_BillingStatus IN ('SenttoBT', 'Sent to BT')
 AND TMP.BILLING_BillingStatus IN ('SenttoBT', 'Sent to BT')
 AND (TMP.SE_BillingStatus IS NULL OR REPLACE(TMP.SE_BillingStatus, ' ', '') = '')
-AND (TMP.SUMMARY_BillingStatus IS NULL OR REPLACE(TMP.SUMMARY_BillingStatus, ' ', '') = '');
+-- AND (TMP.SUMMARY_BillingStatus IS NULL OR REPLACE(TMP.SUMMARY_BillingStatus, ' ', '') = '')
+;
 
 UPDATE POD_EXTRACT
 SET U_BillingStatus = TMP.BE_BillingStatus
@@ -369,7 +396,8 @@ WHERE TMP.U_BookingNumber = POD_EXTRACT.U_BookingNumber
 AND TMP.BE_BillingStatus IN ('SenttoBT', 'Sent to BT')
 AND TMP.BILLING_BillingStatus IN ('SenttoBT', 'Sent to BT')
 AND (TMP.SE_BillingStatus IS NULL OR REPLACE(TMP.SE_BillingStatus, ' ', '') = '')
-AND (TMP.SUMMARY_BillingStatus IS NULL OR REPLACE(TMP.SUMMARY_BillingStatus, ' ', '') = '');
+-- AND (TMP.SUMMARY_BillingStatus IS NULL OR REPLACE(TMP.SUMMARY_BillingStatus, ' ', '') = '')
+;
 
 UPDATE SUMMARY_EXTRACT
 SET U_BillingStatus = TMP.BE_BillingStatus
@@ -378,6 +406,7 @@ WHERE TMP.U_BookingNumber = SUMMARY_EXTRACT.U_BookingNumber
 AND TMP.BE_BillingStatus IN ('SenttoBT', 'Sent to BT')
 AND TMP.BILLING_BillingStatus IN ('SenttoBT', 'Sent to BT')
 AND (TMP.SE_BillingStatus IS NULL OR REPLACE(TMP.SE_BillingStatus, ' ', '') = '')
-AND (TMP.SUMMARY_BillingStatus IS NULL OR REPLACE(TMP.SUMMARY_BillingStatus, ' ', '') = '');
+-- AND (TMP.SUMMARY_BillingStatus IS NULL OR REPLACE(TMP.SUMMARY_BillingStatus, ' ', '') = '')
+;
 
 DROP TABLE IF EXISTS TMP_TARGET_ISSUE20;
