@@ -116,8 +116,15 @@ const fieldEvent = (jElement, eventType, targetTabName = '', globalEvent = '') =
                                     if (observee.invalidValues[field] !== undefined) {
                                         if (observee.invalidValues[field].passedValues !== undefined
                                             && observee.invalidValues[field].passedValues.includes(value)) continue;
-                                        if (observee.invalidValues[field].values === undefined) continue;
-                                        invalidValues = observee.invalidValues[field].values;
+                                        if (observee.invalidValues[field].values === undefined) {
+                                            if (observee.invalidValues.default !== undefined) {
+                                                invalidValues = observee.invalidValues.default;
+                                            } else {
+                                                invalidValues = p.viewOptions.default_input_invalid_values;
+                                            }
+                                        } else {
+                                            invalidValues = observee.invalidValues[field].values;
+                                        }
                                     } else if (observee.invalidValues.default !== undefined) {
                                         invalidValues = observee.invalidValues.default;
                                     } else {
