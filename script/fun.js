@@ -117,7 +117,11 @@ const fieldEvent = (jElement, eventType, targetTabName = '', globalEvent = '') =
                                         if (observee.invalidValues[field].passedValues !== undefined
                                             && observee.invalidValues[field].passedValues.includes(value)) continue;
                                         if (observee.invalidValues[field].values === undefined) {
-                                            invalidValues = value;
+                                            if (observee.invalidValues.default !== undefined) {
+                                                invalidValues = observee.invalidValues.default;
+                                            } else {
+                                                invalidValues = [null, '', 0];
+                                            }
                                         } else {
                                             invalidValues = observee.invalidValues[field].values;
                                         }
