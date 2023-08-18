@@ -7,11 +7,23 @@ PRINT 'CREATING CONDITIONAL TARGETS'
     FROM (
         -----> issue #20
         SELECT
-            BE.U_BookingId AS U_BookingNumber,
+            SE.U_BookingNumber,
             'SUMMARY-BILLING-DATA-INCONSISTENCY' AS ISSUE
         FROM SUMMARY_EXTRACT SE
         LEFT JOIN BILLING_EXTRACT BE ON BE.U_BookingId = SE.U_BookingNumber
-        WHERE (BE.U_BillingStatus <> SE.U_BillingStatus AND REPLACE(BE.U_BillingStatus, ' ', '') <> REPLACE(SE.U_BillingStatus, ' ', ''))
+        WHERE (
+            (BE.U_BillingStatus <> SE.U_BillingStatus AND REPLACE(BE.U_BillingStatus, ' ', '') <> REPLACE(SE.U_BillingStatus, ' ', '')) 
+            OR (
+                (
+                    BE.U_BillingStatus IS NOT NULL AND REPLACE(BE.U_BillingStatus, ' ', '') <> '' 
+                    AND (SE.U_BillingStatus IS NULL OR REPLACE(SE.U_BillingStatus, ' ', '') = '')
+                )
+                OR (
+                    SE.U_BillingStatus IS NOT NULL AND REPLACE(SE.U_BillingStatus, ' ', '') <> '' 
+                    AND (BE.U_BillingStatus IS NULL OR REPLACE(BE.U_BillingStatus, ' ', '') = '')
+                )
+            )
+        )
         OR BE.U_InvoiceNo <> SE.U_InvoiceNo
         OR BE.U_PODSONum <> SE.U_PODSONum
         OR BE.U_DocNum <> SE.U_ARDocNum
