@@ -120,7 +120,7 @@ const fieldEvent = (jElement, eventType, targetTabName = '', globalEvent = '') =
                                             if (observee.invalidValues.default !== undefined) {
                                                 invalidValues = observee.invalidValues.default;
                                             } else {
-                                                invalidValues = [null, '', 0];
+                                                invalidValues = p.viewOptions.default_input_invalid_values;
                                             }
                                         } else {
                                             invalidValues = observee.invalidValues[field].values;

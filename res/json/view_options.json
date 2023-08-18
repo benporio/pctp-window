@@ -18,5 +18,6 @@
     },
     "disable_checkbox_on_locked_data_row": true,
     "enable_find_timer_display": true,
-    "find_timer_display_duration_ms": 10000
+    "find_timer_display_duration_ms": 10000,
+    "default_input_invalid_values": [null, "", 0]
 }
