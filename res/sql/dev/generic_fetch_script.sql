@@ -1,8 +1,8 @@
 IF (OBJECT_ID('fetchDataRow') IS NOT NULL)
-    DROP PROCEDURE fetchDataRow
+    DROP PROCEDURE [dbo].fetchDataRow
 GO
 
-CREATE PROCEDURE fetchDataRow   
+CREATE PROCEDURE [dbo].fetchDataRow   
     @TabName nvarchar(20),   
     @BookingIds nvarchar(max),   
     @AccessColumns nvarchar(30) = 'ALL'  
