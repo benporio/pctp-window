@@ -24,6 +24,15 @@ SELECT
 RTRIM(LTRIM(value)) AS item
 FROM STRING_SPLIT(@AccessColumns, ',');
 
+UPDATE [@FirstratesTP] 
+SET U_Amount = NULL
+WHERE U_Amount = 'NaN' AND U_BN IN (SELECT item FROM @BookingIdList);
+
+
+UPDATE [@FirstratesTP] 
+SET U_AddlAmount = NULL
+WHERE U_AddlAmount = 'NaN' AND U_BN IN (SELECT item FROM @BookingIdList);
+
 WITH LOCAL_TP_FORMULA(
     U_BookingNumber, 
     DisableTableRow, 
