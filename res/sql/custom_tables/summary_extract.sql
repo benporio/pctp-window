@@ -135,7 +135,17 @@ SELECT
     -- CASE WHEN BE.U_BillingStatus IS NOT NULL THEN BE.U_BillingStatus
     -- ELSE T0.U_BillingStatus END AS U_BillingStatus,
     -- T0.U_SINo,
-    T0.U_PODStatusPayment,
+    -- T0.U_PODStatusPayment,
+    dbo.computePODStatusPayment(
+        dbo.computeOverdueDays(
+            T0.U_ActualHCRecDate,
+            dbo.computePODSubmitDeadline(
+                T0.U_DeliveryDateDTR,
+                ISNULL(T1.U_CDC,0)
+            ),
+            ISNULL(T0.U_HolidayOrWeekend, 0)
+        )
+    ) AS 'U_PODStatusPayment',
     tp.U_PaymentReference,
     tp.U_PaymentStatus,
     '' AS U_ProofOfPayment,
