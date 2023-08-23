@@ -4,7 +4,7 @@ GO
 
 CREATE FUNCTION [dbo].fetchPctpDataRows(
     @TabName nvarchar(20),   
-    @BookingIds nvarchar(4000),   
+    @BookingIds nvarchar(max),   
     @AccessColumns nvarchar(30) = 'ALL' 
 )
 RETURNS @T TABLE(
