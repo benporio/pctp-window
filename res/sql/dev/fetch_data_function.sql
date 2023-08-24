@@ -8,74 +8,74 @@ CREATE FUNCTION [dbo].fetchPctpDataRows(
     @AccessColumns nvarchar(30) = 'ALL' 
 )
 RETURNS @T TABLE(
-    Code nvarchar(4000),
+    Code nvarchar(500),
     DisableTableRow nvarchar(5),
     DisableSomeFields nvarchar(30),
     DisableSomeFields2 nvarchar(30),
     U_BookingDate DATETIME,
-    U_BookingNumber nvarchar(4000),
-    U_BookingId nvarchar(4000),
-    U_PODNum nvarchar(4000),
-    U_PODSONum nvarchar(4000),
-    U_CustomerName nvarchar(4000),
-    U_GrossClientRates nvarchar(4000), -- NUMERIC(19,6)
-    U_GrossInitialRate nvarchar(4000),
-    U_Demurrage nvarchar(4000),
-    U_AddtlDrop nvarchar(4000),
-    U_BoomTruck nvarchar(4000),
-    U_BoomTruck2 nvarchar(4000),
-    U_TPBoomTruck2 nvarchar(4000),
-    U_Manpower nvarchar(4000),
-    U_BackLoad nvarchar(4000),
-    U_TotalAddtlCharges nvarchar(4000),
-    U_Demurrage2 nvarchar(4000),
-    U_AddtlDrop2 nvarchar(4000),
-    U_Manpower2 nvarchar(4000),
-    U_Backload2 nvarchar(4000),
-    U_totalAddtlCharges2 nvarchar(4000),
-    U_Demurrage3 nvarchar(4000),
-    U_GrossProfit nvarchar(4000),
-    U_Addtlcharges nvarchar(4000),
-    U_DemurrageN nvarchar(4000),
-    U_AddtlChargesN nvarchar(4000),
-    U_ActualRates nvarchar(4000),
-    U_RateAdjustments nvarchar(4000),
-    U_TPRateAdjustments nvarchar(4000),
-    U_ActualDemurrage nvarchar(4000),
-    U_TPActualDemurrage nvarchar(4000),
-    U_ActualCharges nvarchar(4000),
-    U_OtherCharges nvarchar(4000),
-    U_AddCharges nvarchar(4000),
-    U_ActualBilledRate nvarchar(4000),
-    U_BillingRateAdjustments nvarchar(4000),
-    U_BillingActualDemurrage nvarchar(4000),
-    U_ActualAddCharges nvarchar(4000),
-    U_GrossClientRatesTax nvarchar(4000),
-    U_GrossTruckerRates nvarchar(4000),
+    U_BookingNumber nvarchar(500),
+    U_BookingId nvarchar(500),
+    U_PODNum nvarchar(500),
+    U_PODSONum nvarchar(500),
+    U_CustomerName nvarchar(500),
+    U_GrossClientRates nvarchar(500), -- NUMERIC(19,6)
+    U_GrossInitialRate nvarchar(500),
+    U_Demurrage nvarchar(500),
+    U_AddtlDrop nvarchar(500),
+    U_BoomTruck nvarchar(500),
+    U_BoomTruck2 nvarchar(500),
+    U_TPBoomTruck2 nvarchar(500),
+    U_Manpower nvarchar(500),
+    U_BackLoad nvarchar(500),
+    U_TotalAddtlCharges nvarchar(500),
+    U_Demurrage2 nvarchar(500),
+    U_AddtlDrop2 nvarchar(500),
+    U_Manpower2 nvarchar(500),
+    U_Backload2 nvarchar(500),
+    U_totalAddtlCharges2 nvarchar(500),
+    U_Demurrage3 nvarchar(500),
+    U_GrossProfit nvarchar(500),
+    U_Addtlcharges nvarchar(500),
+    U_DemurrageN nvarchar(500),
+    U_AddtlChargesN nvarchar(500),
+    U_ActualRates nvarchar(500),
+    U_RateAdjustments nvarchar(500),
+    U_TPRateAdjustments nvarchar(500),
+    U_ActualDemurrage nvarchar(500),
+    U_TPActualDemurrage nvarchar(500),
+    U_ActualCharges nvarchar(500),
+    U_OtherCharges nvarchar(500),
+    U_AddCharges nvarchar(500),
+    U_ActualBilledRate nvarchar(500),
+    U_BillingRateAdjustments nvarchar(500),
+    U_BillingActualDemurrage nvarchar(500),
+    U_ActualAddCharges nvarchar(500),
+    U_GrossClientRatesTax nvarchar(500),
+    U_GrossTruckerRates nvarchar(500),
     U_RateBasis nvarchar(50),
-    U_GrossTruckerRatesN nvarchar(4000),
+    U_GrossTruckerRatesN nvarchar(500),
     U_TaxType nvarchar(50),
-    U_GrossTruckerRatesTax nvarchar(4000),
+    U_GrossTruckerRatesTax nvarchar(500),
     U_RateBasisT nvarchar(50),
     U_TaxTypeT nvarchar(50),
-    U_Demurrage4 nvarchar(4000),
-    U_AddtlCharges2 nvarchar(4000),
-    U_GrossProfitC nvarchar(4000),
-    U_GrossProfitNet nvarchar(4000),
-    U_TotalInitialClient nvarchar(4000),
-    U_TotalInitialTruckers nvarchar(4000),
-    U_TotalGrossProfit nvarchar(4000),
+    U_Demurrage4 nvarchar(500),
+    U_AddtlCharges2 nvarchar(500),
+    U_GrossProfitC nvarchar(500),
+    U_GrossProfitNet nvarchar(500),
+    U_TotalInitialClient nvarchar(500),
+    U_TotalInitialTruckers nvarchar(500),
+    U_TotalGrossProfit nvarchar(500),
     U_ClientTag2 nvarchar(100),
-    U_ClientName nvarchar(4000),
-    U_SAPClient nvarchar(4000),
-    U_ClientTag nvarchar(4000),
+    U_ClientName nvarchar(500),
+    U_SAPClient nvarchar(500),
+    U_ClientTag nvarchar(500),
     U_ClientProject nvarchar(100),
     U_ClientVatStatus nvarchar(20),
-    U_TruckerName nvarchar(4000),
-    U_TruckerSAP nvarchar(4000),
-    U_TruckerTag nvarchar(4000),
+    U_TruckerName nvarchar(500),
+    U_TruckerSAP nvarchar(500),
+    U_TruckerTag nvarchar(500),
     U_TruckerVatStatus nvarchar(20),
-    U_TPStatus nvarchar(4000),
+    U_TPStatus nvarchar(500),
     U_Aging DATETIME,
     U_ISLAND nvarchar(50),
     U_ISLAND_D nvarchar(50),
@@ -89,7 +89,7 @@ RETURNS @T TABLE(
     U_DeliveryStatus nvarchar(50),
     U_DeliveryDateDTR DATETIME,
     U_DeliveryDatePOD DATETIME,
-    U_NoOfDrops nvarchar(4000),
+    U_NoOfDrops nvarchar(500),
     U_TripType nvarchar(100),
     U_Receivedby nvarchar(100),
     U_ClientReceivedDate DATETIME,
@@ -114,107 +114,107 @@ RETURNS @T TABLE(
     U_TimeOutLoadedDem nvarchar(50),
     U_VerifiedLoadedDem nvarchar(50),
     U_TimeInAdvLoading nvarchar(50),
-    U_PenaltiesManual nvarchar(4000),
+    U_PenaltiesManual nvarchar(500),
     U_DayOfTheWeek nvarchar(50),
     U_TimeIn nvarchar(50),
     U_TimeOut nvarchar(50),
-    U_TotalExceed nvarchar(4000),
-    U_TotalNoExceed nvarchar(4000),
+    U_TotalExceed nvarchar(500),
+    U_TotalNoExceed nvarchar(500),
     U_ODOIn nvarchar(50),
     U_ODOOut nvarchar(50),
-    U_TotalUsage nvarchar(4000),
+    U_TotalUsage nvarchar(500),
     U_ClientSubStatus nvarchar(50),
     U_ClientSubOverdue nvarchar(50),
     U_ClientPenaltyCalc nvarchar(50),
     U_PODStatusPayment nvarchar(50),
     U_ProofOfPayment nvarchar(50),
-    U_TotalRecClients nvarchar(4000),
-    U_CheckingTotalBilled nvarchar(4000),
-    U_Checking nvarchar(4000),
-    U_CWT2307 nvarchar(4000),
+    U_TotalRecClients nvarchar(500),
+    U_CheckingTotalBilled nvarchar(500),
+    U_Checking nvarchar(500),
+    U_CWT2307 nvarchar(500),
     U_SOLineNum nvarchar(10),
     U_ARInvLineNum nvarchar(10),
-    U_TotalPayable nvarchar(4000),
-    U_TotalSubPenalty nvarchar(4000),
-    U_PVNo nvarchar(4000),
-    U_TPincharge nvarchar(4000),
-    U_CAandDP nvarchar(4000),
-    U_Interest nvarchar(4000),
-    U_OtherDeductions nvarchar(4000),
-    U_TOTALDEDUCTIONS nvarchar(4000),
-    U_REMARKS1 nvarchar(4000),
-    U_TotalAR nvarchar(4000),
-    U_VarAR nvarchar(4000),
-    U_TotalAP nvarchar(4000),
-    U_VarTP nvarchar(4000),
+    U_TotalPayable nvarchar(500),
+    U_TotalSubPenalty nvarchar(500),
+    U_PVNo nvarchar(500),
+    U_TPincharge nvarchar(500),
+    U_CAandDP nvarchar(500),
+    U_Interest nvarchar(500),
+    U_OtherDeductions nvarchar(500),
+    U_TOTALDEDUCTIONS nvarchar(500),
+    U_REMARKS1 nvarchar(500),
+    U_TotalAR nvarchar(500),
+    U_VarAR nvarchar(500),
+    U_TotalAP nvarchar(500),
+    U_VarTP nvarchar(500),
     U_APInvLineNum nvarchar(10),
     U_PODSubmitDeadline DATETIME,
     U_OverdueDays nvarchar(25),
     U_InteluckPenaltyCalc nvarchar(50),
     U_WaivedDays nvarchar(50),
     U_HolidayOrWeekend nvarchar(50),
-    U_EWT2307 nvarchar(4000),
+    U_EWT2307 nvarchar(500),
     U_LostPenaltyCalc nvarchar(50),
     U_TotalSubPenalties nvarchar(50),
     U_Waived nvarchar(50),
     U_PercPenaltyCharge nvarchar(50),
     U_Approvedby nvarchar(100),
     U_TotalPenaltyWaived nvarchar(50),
-    U_TotalPenalty nvarchar(4000),
-    U_TotalPayableRec nvarchar(4000),
+    U_TotalPenalty nvarchar(500),
+    U_TotalPayableRec nvarchar(500),
     U_APDocNum nvarchar(50),
-    U_ServiceType nvarchar(4000),
-    U_InvoiceNo nvarchar(4000),
-    U_ARDocNum nvarchar(4000),
-    U_DocNum nvarchar(4000),
-    U_Paid nvarchar(4000),
-    U_ORRefNo nvarchar(4000),
-    U_ActualPaymentDate nvarchar(4000),
-    U_PaymentReference nvarchar(4000),
-    U_PaymentStatus nvarchar(4000),
-    U_Remarks nvarchar(4000),
-    U_GroupProject nvarchar(4000),
-    U_Attachment nvarchar(4000),
-    U_DeliveryOrigin nvarchar(4000),
-    U_Destination nvarchar(4000),
-    U_OtherPODDoc nvarchar(4000),
-    U_RemarksPOD nvarchar(4000),
-    U_PODStatusDetail nvarchar(4000),
-    U_BTRemarks nvarchar(4000),
-    U_DestinationClient nvarchar(4000),
-    U_Remarks2 nvarchar(4000),
-    U_TripTicketNo nvarchar(4000),
-    U_WaybillNo nvarchar(4000),
-    U_ShipmentNo nvarchar(4000),
-    U_ShipmentManifestNo nvarchar(4000),
-    U_DeliveryReceiptNo nvarchar(4000),
-    U_SeriesNo nvarchar(4000),
-    U_OutletNo nvarchar(4000),
-    U_CBM nvarchar(4000),
-    U_SI_DRNo nvarchar(4000),
-    U_DeliveryMode nvarchar(4000),
-    U_SourceWhse nvarchar(4000),
-    U_SONo nvarchar(4000),
-    U_NameCustomer nvarchar(4000),
-    U_CategoryDR nvarchar(4000),
-    U_IDNumber nvarchar(4000),
-    U_ApprovalStatus nvarchar(4000),
-    U_Status nvarchar(4000),
-    U_RemarksDTR nvarchar(4000),
-    U_TotalInvAmount nvarchar(4000),
-    U_PODDocNum nvarchar(4000)
+    U_ServiceType nvarchar(500),
+    U_InvoiceNo nvarchar(500),
+    U_ARDocNum nvarchar(500),
+    U_DocNum nvarchar(500),
+    U_Paid nvarchar(500),
+    U_ORRefNo nvarchar(500),
+    U_ActualPaymentDate nvarchar(500),
+    U_PaymentReference nvarchar(500),
+    U_PaymentStatus nvarchar(500),
+    U_Remarks nvarchar(500),
+    U_GroupProject nvarchar(500),
+    U_Attachment nvarchar(500),
+    U_DeliveryOrigin nvarchar(500),
+    U_Destination nvarchar(500),
+    U_OtherPODDoc nvarchar(500),
+    U_RemarksPOD nvarchar(500),
+    U_PODStatusDetail nvarchar(500),
+    U_BTRemarks nvarchar(500),
+    U_DestinationClient nvarchar(500),
+    U_Remarks2 nvarchar(500),
+    U_TripTicketNo nvarchar(500),
+    U_WaybillNo nvarchar(500),
+    U_ShipmentNo nvarchar(500),
+    U_ShipmentManifestNo nvarchar(500),
+    U_DeliveryReceiptNo nvarchar(500),
+    U_SeriesNo nvarchar(500),
+    U_OutletNo nvarchar(500),
+    U_CBM nvarchar(500),
+    U_SI_DRNo nvarchar(500),
+    U_DeliveryMode nvarchar(500),
+    U_SourceWhse nvarchar(500),
+    U_SONo nvarchar(500),
+    U_NameCustomer nvarchar(500),
+    U_CategoryDR nvarchar(500),
+    U_IDNumber nvarchar(500),
+    U_ApprovalStatus nvarchar(500),
+    U_Status nvarchar(500),
+    U_RemarksDTR nvarchar(500),
+    U_TotalInvAmount nvarchar(500),
+    U_PODDocNum nvarchar(500)
 )
 AS
 BEGIN
     --BOOKING IDS
-    DECLARE @BookingIdList TABLE(item nvarchar(4000));
+    DECLARE @BookingIdList TABLE(item nvarchar(500));
     INSERT INTO @BookingIdList
     SELECT 
     RTRIM(LTRIM(value)) AS item
     FROM STRING_SPLIT(@BookingIds, ',');
 
     --ACCESS COLUMNS
-    DECLARE @AccessColumnList TABLE(item nvarchar(4000));
+    DECLARE @AccessColumnList TABLE(item nvarchar(500));
     INSERT INTO @AccessColumnList
     SELECT 
     RTRIM(LTRIM(value)) AS item
@@ -3114,11 +3114,11 @@ BEGIN
     SELECT
         --COLUMNS
         CASE
-            WHEN @TabName = 'SUMMARY' THEN CAST(POD.Code AS nvarchar(4000))
-            WHEN @TabName = 'POD' THEN CAST(POD.U_BookingNumber AS nvarchar(4000))
-            WHEN @TabName = 'BILLING' THEN CAST(BILLING.Code AS nvarchar(4000))
-            WHEN @TabName = 'TP' THEN CAST(TP.Code AS nvarchar(4000))
-            WHEN @TabName = 'PRICING' THEN CAST(PRICING.Code AS nvarchar(4000))
+            WHEN @TabName = 'SUMMARY' THEN CAST(POD.Code AS nvarchar(500))
+            WHEN @TabName = 'POD' THEN CAST(POD.U_BookingNumber AS nvarchar(500))
+            WHEN @TabName = 'BILLING' THEN CAST(BILLING.Code AS nvarchar(500))
+            WHEN @TabName = 'TP' THEN CAST(TP.Code AS nvarchar(500))
+            WHEN @TabName = 'PRICING' THEN CAST(PRICING.Code AS nvarchar(500))
             ELSE NULL
         END As Code,
         CASE
@@ -3195,27 +3195,27 @@ BEGIN
         END AS DisableSomeFields2,
         POD.U_BookingDate,
         CASE
-            WHEN @TabName = 'SUMMARY' THEN CAST(POD.U_BookingNumber AS nvarchar(4000))
-            WHEN @TabName = 'POD' THEN CAST(POD.U_BookingNumber AS nvarchar(4000))
-            WHEN @TabName = 'BILLING' THEN CAST(BILLING.U_BookingId AS nvarchar(4000))
-            WHEN @TabName = 'TP' THEN CAST(TP.U_BookingId AS nvarchar(4000))
-            WHEN @TabName = 'PRICING' THEN CAST(PRICING.U_BookingId AS nvarchar(4000))
+            WHEN @TabName = 'SUMMARY' THEN CAST(POD.U_BookingNumber AS nvarchar(500))
+            WHEN @TabName = 'POD' THEN CAST(POD.U_BookingNumber AS nvarchar(500))
+            WHEN @TabName = 'BILLING' THEN CAST(BILLING.U_BookingId AS nvarchar(500))
+            WHEN @TabName = 'TP' THEN CAST(TP.U_BookingId AS nvarchar(500))
+            WHEN @TabName = 'PRICING' THEN CAST(PRICING.U_BookingId AS nvarchar(500))
             ELSE NULL
         END AS U_BookingNumber,
         CASE
-            WHEN @TabName = 'SUMMARY' THEN CAST(POD.U_BookingNumber AS nvarchar(4000))
-            WHEN @TabName = 'POD' THEN CAST(POD.U_BookingNumber AS nvarchar(4000))
-            WHEN @TabName = 'BILLING' THEN CAST(BILLING.U_BookingId AS nvarchar(4000))
-            WHEN @TabName = 'TP' THEN CAST(TP.U_BookingId AS nvarchar(4000))
-            WHEN @TabName = 'PRICING' THEN CAST(PRICING.U_BookingId AS nvarchar(4000))
+            WHEN @TabName = 'SUMMARY' THEN CAST(POD.U_BookingNumber AS nvarchar(500))
+            WHEN @TabName = 'POD' THEN CAST(POD.U_BookingNumber AS nvarchar(500))
+            WHEN @TabName = 'BILLING' THEN CAST(BILLING.U_BookingId AS nvarchar(500))
+            WHEN @TabName = 'TP' THEN CAST(TP.U_BookingId AS nvarchar(500))
+            WHEN @TabName = 'PRICING' THEN CAST(PRICING.U_BookingId AS nvarchar(500))
             ELSE NULL
         END AS U_BookingId,
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_PODNum') THEN
                 CASE
-                    WHEN @TabName = 'BILLING' THEN CAST(BILLING.U_BookingId AS nvarchar(4000))
-                    WHEN @TabName = 'TP' THEN CAST(TP.U_BookingId AS nvarchar(4000))
-                    WHEN @TabName = 'PRICING' THEN CAST(PRICING.U_BookingId AS nvarchar(4000))
+                    WHEN @TabName = 'BILLING' THEN CAST(BILLING.U_BookingId AS nvarchar(500))
+                    WHEN @TabName = 'TP' THEN CAST(TP.U_BookingId AS nvarchar(500))
+                    WHEN @TabName = 'PRICING' THEN CAST(PRICING.U_BookingId AS nvarchar(500))
                     ELSE NULL
                 END
             ELSE NULL
@@ -3229,10 +3229,10 @@ BEGIN
                     LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
                 WHERE line.ItemCode = BILLING.U_BookingId
                     AND header.CANCELED = 'N'
-                ) AS nvarchar(4000))
+                ) AS nvarchar(500))
             ELSE NULL
         END AS U_PODSONum,
-        CAST(client.CardName AS nvarchar(4000)) AS U_CustomerName,
+        CAST(client.CardName AS nvarchar(500)) AS U_CustomerName,
         PRICING.U_GrossClientRates AS U_GrossClientRates,
         PRICING.U_GrossClientRates AS U_GrossInitialRate,
         CASE
@@ -3283,9 +3283,9 @@ BEGIN
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_BackLoad') THEN
                 CASE
-                    WHEN @TabName = 'POD' THEN CAST(POD.U_BackLoad AS nvarchar(4000))
-                    WHEN @TabName = 'TP' THEN CAST(ISNULL(PRICING.U_Backload2, 0) AS nvarchar(4000))
-                    WHEN @TabName = 'PRICING' THEN CAST(ISNULL(PRICING.U_Backload, 0) AS nvarchar(4000))
+                    WHEN @TabName = 'POD' THEN CAST(POD.U_BackLoad AS nvarchar(500))
+                    WHEN @TabName = 'TP' THEN CAST(ISNULL(PRICING.U_Backload2, 0) AS nvarchar(500))
+                    WHEN @TabName = 'PRICING' THEN CAST(ISNULL(PRICING.U_Backload, 0) AS nvarchar(500))
                     ELSE NULL
                 END
             ELSE NULL
@@ -3765,43 +3765,45 @@ BEGIN
         POD.U_BillingDeadline,
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_BillingStatus') THEN
-                CASE WHEN EXISTS(
-                    SELECT TOP 1
-                    CASE 
-                            WHEN EXISTS (
-                                SELECT Code
-                    FROM [@BILLINGSTATUS]
-                    WHERE Code = header.U_BillingStatus
-                            ) THEN header.U_BillingStatus
-                            ELSE NULL 
+                CASE 
+                    WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'BILLING' THEN
+                        CASE WHEN EXISTS(
+                            SELECT TOP 1
+                            CASE 
+                                    WHEN EXISTS (
+                                        SELECT Code
+                            FROM [@BILLINGSTATUS]
+                            WHERE Code = header.U_BillingStatus
+                                    ) THEN header.U_BillingStatus
+                                    ELSE NULL 
+                                END
+                        FROM OINV header
+                            LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
+                        WHERE line.ItemCode = POD.U_BookingNumber
+                            AND header.CANCELED = 'N'
+                            AND header.U_BillingStatus IS NOT NULL
+                        ) THEN (
+                            SELECT TOP 1
+                            CASE 
+                                    WHEN EXISTS (
+                                        SELECT Code
+                            FROM [@BILLINGSTATUS]
+                            WHERE Code = header.U_BillingStatus
+                                    ) THEN header.U_BillingStatus
+                                    ELSE NULL 
+                                END
+                        FROM OINV header
+                            LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
+                        WHERE line.ItemCode = POD.U_BookingNumber
+                            AND header.CANCELED = 'N'
+                            AND header.U_BillingStatus IS NOT NULL
+                        ) ELSE 
+                            CASE 
+                                WHEN BILLING.U_BillingStatus IS NULL OR BILLING.U_BillingStatus = '' THEN POD.U_BillingStatus
+                                ELSE BILLING.U_BillingStatus 
+                            END
                         END
-                FROM OINV header
-                    LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
-                WHERE line.ItemCode = POD.U_BookingNumber
-                    AND header.CANCELED = 'N'
-                    AND header.U_BillingStatus IS NOT NULL
-                ) THEN (
-                    SELECT TOP 1
-                    CASE 
-                            WHEN EXISTS (
-                                SELECT Code
-                    FROM [@BILLINGSTATUS]
-                    WHERE Code = header.U_BillingStatus
-                            ) THEN header.U_BillingStatus
-                            ELSE NULL 
-                        END
-                FROM OINV header
-                    LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
-                WHERE line.ItemCode = POD.U_BookingNumber
-                    AND header.CANCELED = 'N'
-                    AND header.U_BillingStatus IS NOT NULL
-                ) ELSE 
-                    CASE 
-                        WHEN @TabName = 'BILLING' THEN 
-                            CASE WHEN BILLING.U_BillingStatus IS NULL OR BILLING.U_BillingStatus = '' THEN POD.U_BillingStatus
-                            ELSE BILLING.U_BillingStatus END
-                        ELSE POD.U_BillingStatus 
-                    END
+                    ELSE NULL 
                 END
             ELSE NULL
         END AS U_BillingStatus,
@@ -4218,7 +4220,7 @@ BEGIN
                         WHERE line.ItemCode = POD.U_BookingNumber
                             AND header.U_ServiceType IS NOT NULL
                             AND header.CANCELED = 'N'
-                            ) as nvarchar(4000)
+                            ) as nvarchar(500)
                         )
                     ELSE NULL
                 END
@@ -4246,7 +4248,7 @@ BEGIN
                         FROM OINV header
                             LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
                         WHERE line.ItemCode = POD.U_BookingNumber
-                            AND header.CANCELED = 'N') as nvarchar(4000)
+                            AND header.CANCELED = 'N') as nvarchar(500)
                         )
                     ELSE NULL
                 END
@@ -4270,7 +4272,7 @@ BEGIN
                         FROM OINV header
                             LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
                         WHERE line.ItemCode = POD.U_BookingNumber
-                            AND header.CANCELED = 'N') as nvarchar(4000)
+                            AND header.CANCELED = 'N') as nvarchar(500)
                         )
                     ELSE NULL
                 END
@@ -4294,9 +4296,9 @@ BEGIN
                         FROM OINV header
                             LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
                         WHERE line.ItemCode = BILLING.U_BookingId
-                            AND header.CANCELED = 'N') as nvarchar(4000)
+                            AND header.CANCELED = 'N') as nvarchar(500)
                         )
-                    WHEN @TabName = 'POD' THEN CAST(POD.U_DocNum as nvarchar(4000))
+                    WHEN @TabName = 'POD' THEN CAST(POD.U_DocNum as nvarchar(500))
                     WHEN @TabName = 'TP' THEN TF.U_DocNum
                     WHEN @TabName = 'PRICING' THEN 
                         CAST((
@@ -4313,7 +4315,7 @@ BEGIN
                         FROM OINV header
                             LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
                         WHERE line.ItemCode = PRICING.U_BookingId
-                            AND header.CANCELED = 'N') as nvarchar(4000)
+                            AND header.CANCELED = 'N') as nvarchar(500)
                         )
                     ELSE NULL
                 END
@@ -4402,40 +4404,40 @@ BEGIN
             ELSE NULL
         END AS U_PaymentStatus,
         CASE
-            WHEN @TabName = 'POD' OR @TabName = 'SUMMARY' THEN CAST(POD.U_Remarks as nvarchar(4000))
-            WHEN @TabName = 'TP' THEN CAST(TP.U_Remarks as nvarchar(4000))
+            WHEN @TabName = 'POD' OR @TabName = 'SUMMARY' THEN CAST(POD.U_Remarks as nvarchar(500))
+            WHEN @TabName = 'TP' THEN CAST(TP.U_Remarks as nvarchar(500))
             ELSE NULL
         END AS U_Remarks,
-        ISNULL(CAST(client.U_GroupLocation as nvarchar(4000)), '') AS U_GroupProject,
-        CAST(POD.U_Attachment as nvarchar(4000)) AS U_Attachment,
-        CAST(POD.U_DeliveryOrigin as nvarchar(4000)) AS U_DeliveryOrigin,
-        CAST(POD.U_Destination as nvarchar(4000)) AS U_Destination,
-        CAST(POD.U_OtherPODDoc as nvarchar(4000)) AS U_OtherPODDoc,
-        CAST(POD.U_RemarksPOD as nvarchar(4000)) AS U_RemarksPOD,
-        CAST(POD.U_PODStatusDetail as nvarchar(4000)) AS U_PODStatusDetail,
-        CAST(POD.U_BTRemarks as nvarchar(4000)) AS U_BTRemarks,
-        CAST(POD.U_DestinationClient as nvarchar(4000)) AS U_DestinationClient,
-        CAST(POD.U_Remarks2 as nvarchar(4000)) AS U_Remarks2,
-        CAST(POD.U_TripTicketNo as nvarchar(4000)) AS U_TripTicketNo,
-        CAST(POD.U_WaybillNo as nvarchar(4000)) AS U_WaybillNo,
-        CAST(POD.U_ShipmentNo as nvarchar(4000)) AS U_ShipmentNo,
-        CAST(POD.U_ShipmentNo as nvarchar(4000)) AS U_ShipmentManifestNo,
-        CAST(POD.U_DeliveryReceiptNo as nvarchar(4000)) AS U_DeliveryReceiptNo,
-        CAST(POD.U_SeriesNo as nvarchar(4000)) AS U_SeriesNo,
-        CAST(POD.U_OutletNo as nvarchar(4000)) AS U_OutletNo,
-        CAST(POD.U_CBM as nvarchar(4000)) AS U_CBM,
-        CAST(POD.U_SI_DRNo as nvarchar(4000)) AS U_SI_DRNo,
-        CAST(POD.U_DeliveryMode as nvarchar(4000)) AS U_DeliveryMode,
-        CAST(POD.U_SourceWhse as nvarchar(4000)) AS U_SourceWhse,
-        CAST(POD.U_SONo as nvarchar(4000)) AS U_SONo,
-        CAST(POD.U_NameCustomer as nvarchar(4000)) AS U_NameCustomer,
-        CAST(POD.U_CategoryDR as nvarchar(4000)) AS U_CategoryDR,
-        CAST(POD.U_IDNumber as nvarchar(4000)) AS U_IDNumber,
-        CAST(POD.U_ApprovalStatus as nvarchar(4000)) AS U_ApprovalStatus,
-        CAST(POD.U_ApprovalStatus as nvarchar(4000)) AS U_Status,
-        CAST(PRICING.U_RemarksDTR as nvarchar(4000)) AS U_RemarksDTR,
-        CAST(POD.U_TotalInvAmount as nvarchar(4000)) AS U_TotalInvAmount,
-        CAST(POD.U_DocNum as nvarchar(4000)) AS U_PODDocNum
+        ISNULL(CAST(client.U_GroupLocation as nvarchar(500)), '') AS U_GroupProject,
+        CAST(POD.U_Attachment as nvarchar(500)) AS U_Attachment,
+        CAST(POD.U_DeliveryOrigin as nvarchar(500)) AS U_DeliveryOrigin,
+        CAST(POD.U_Destination as nvarchar(500)) AS U_Destination,
+        CAST(POD.U_OtherPODDoc as nvarchar(500)) AS U_OtherPODDoc,
+        CAST(POD.U_RemarksPOD as nvarchar(500)) AS U_RemarksPOD,
+        CAST(POD.U_PODStatusDetail as nvarchar(500)) AS U_PODStatusDetail,
+        CAST(POD.U_BTRemarks as nvarchar(500)) AS U_BTRemarks,
+        CAST(POD.U_DestinationClient as nvarchar(500)) AS U_DestinationClient,
+        CAST(POD.U_Remarks2 as nvarchar(500)) AS U_Remarks2,
+        CAST(POD.U_TripTicketNo as nvarchar(500)) AS U_TripTicketNo,
+        CAST(POD.U_WaybillNo as nvarchar(500)) AS U_WaybillNo,
+        CAST(POD.U_ShipmentNo as nvarchar(500)) AS U_ShipmentNo,
+        CAST(POD.U_ShipmentNo as nvarchar(500)) AS U_ShipmentManifestNo,
+        CAST(POD.U_DeliveryReceiptNo as nvarchar(500)) AS U_DeliveryReceiptNo,
+        CAST(POD.U_SeriesNo as nvarchar(500)) AS U_SeriesNo,
+        CAST(POD.U_OutletNo as nvarchar(500)) AS U_OutletNo,
+        CAST(POD.U_CBM as nvarchar(500)) AS U_CBM,
+        CAST(POD.U_SI_DRNo as nvarchar(500)) AS U_SI_DRNo,
+        CAST(POD.U_DeliveryMode as nvarchar(500)) AS U_DeliveryMode,
+        CAST(POD.U_SourceWhse as nvarchar(500)) AS U_SourceWhse,
+        CAST(POD.U_SONo as nvarchar(500)) AS U_SONo,
+        CAST(POD.U_NameCustomer as nvarchar(500)) AS U_NameCustomer,
+        CAST(POD.U_CategoryDR as nvarchar(500)) AS U_CategoryDR,
+        CAST(POD.U_IDNumber as nvarchar(500)) AS U_IDNumber,
+        CAST(POD.U_ApprovalStatus as nvarchar(500)) AS U_ApprovalStatus,
+        CAST(POD.U_ApprovalStatus as nvarchar(500)) AS U_Status,
+        CAST(PRICING.U_RemarksDTR as nvarchar(500)) AS U_RemarksDTR,
+        CAST(POD.U_TotalInvAmount as nvarchar(500)) AS U_TotalInvAmount,
+        CAST(POD.U_DocNum as nvarchar(500)) AS U_PODDocNum
 
     --COLUMNS
     FROM [dbo].[@PCTP_POD] POD WITH (NOLOCK)
@@ -4450,10 +4452,10 @@ BEGIN
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList)
     AND (CASE
         WHEN @TabName = 'BILLING' THEN 
-            CASE WHEN (CAST(POD.U_PODStatusDetail as nvarchar(4000)) LIKE '%Verified%' OR CAST(POD.U_PODStatusDetail as nvarchar(4000)) LIKE '%ForAdvanceBilling%') THEN 1
+            CASE WHEN (CAST(POD.U_PODStatusDetail as nvarchar(500)) LIKE '%Verified%' OR CAST(POD.U_PODStatusDetail as nvarchar(500)) LIKE '%ForAdvanceBilling%') THEN 1
             ELSE 0 END
         WHEN @TabName = 'TP' THEN 
-            CASE WHEN CAST(POD.U_PODStatusDetail as nvarchar(4000)) LIKE '%Verified%' THEN 1
+            CASE WHEN CAST(POD.U_PODStatusDetail as nvarchar(500)) LIKE '%Verified%' THEN 1
             ELSE 0 END
         ELSE 1
     END) = 1
