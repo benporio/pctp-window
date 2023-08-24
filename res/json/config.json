@@ -3,7 +3,7 @@
     "enable_excel_background_download": true,
     "excel_download_rows_interval": 1000,
     "enable_data_row_realtime": false,
-    "enable_fetch_from_extract": false,
-    "disable_refresh_extract_when_fetching": true,
+    "enable_fetch_from_extract": true,
+    "disable_refresh_extract_when_fetching": false,
     "enable_format_drop_down_value_to_name": true
 }

@@ -169,9 +169,8 @@ final class PctpWindowTabHelper
             $filterClause = ' WHERE ' . join(' AND ', $filterClauseChunks);
         }
         // $script = preg_replace('/--REMOVE_WHEN_COUNTING[\s\S]+--REMOVE_WHEN_COUNTING/', '', $caller->script);
-        $doFetchFromExtract = isset($this->settings->config['enable_fetch_from_extract']) && $this->settings->config['enable_fetch_from_extract'];
-        $script = preg_replace('/--COLUMNS[\s\S]+--COLUMNS/', 'COUNT(*) AS NoOfRows', $doFetchFromExtract && $caller->extractScript !== '' ? $caller->extractScript : $caller->script);
-        if ($caller->extractScript !== '' && $doFetchFromExtract) {
+        $script = preg_replace('/--COLUMNS[\s\S]+--COLUMNS/', 'COUNT(*) AS NoOfRows', $caller->extractScript !== '' ? $caller->extractScript : $caller->script);
+        if ($caller->extractScript !== '') {
             if (str_contains($filterClause, 'billing.')) $filterClause = str_replace('billing.', ' BE.', $filterClause);
             if (str_contains($filterClause, 'BE.') || str_contains($filterClause, 'TF.')) {
                 $caller->manipulateJoinTablesInExtract($filterClause, $script);

@@ -89,8 +89,7 @@ abstract class APctpWindowTab extends ASerializableClass
             $filterClause = ' WHERE ' . join(' AND ', $filterClauseChunks);
         }
         $script = file_get_contents(__DIR__ . '/../sql/attachment.sql');
-        $doFetchFromExtract = isset($this->settings->config['enable_fetch_from_extract']) && $this->settings->config['enable_fetch_from_extract'];
-        if ($doFetchFromExtract && $this->extractScript !== '' && str_contains($filterClause, 'LIKE')) {
+        if ($this->extractScript !== '' && str_contains($filterClause, 'LIKE')) {
             $bookingIds = $this->getBookingIdsFilter(false, $filterClause);
             if ((bool)$bookingIds) {
                 $bookingIdsStr = "'" . join("','", $bookingIds) . "'";
@@ -153,9 +152,8 @@ abstract class APctpWindowTab extends ASerializableClass
 
     private function getFilteredBookingIds(bool $enableFieldsFindOptions, string $filterClause, string $orderClause = '', string $offsetClause = ''): array
     {
-        $doFetchFromExtract = isset($this->settings->config['enable_fetch_from_extract']) && $this->settings->config['enable_fetch_from_extract'];
         $bookingIdColumn = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BookingId'), '', $enableFieldsFindOptions);
-        $bookingIdScript = $doFetchFromExtract ? $this->extractScript : $this->script;
+        $bookingIdScript = $this->extractScript;
         $bookingIdScript = preg_replace('/--COLUMNS[\s\S]+--COLUMNS/', "$bookingIdColumn AS BookingId", $bookingIdScript);
         $newFilterClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $filterClause);
         $newOrderClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $orderClause);
@@ -165,9 +163,8 @@ abstract class APctpWindowTab extends ASerializableClass
 
     private function getBookingIdsFilter(bool $enableFieldsFindOptions, string $filterClause, string $orderClause = '', string $offsetClause = ''): array
     {
-        $doFetchFromExtract = isset($this->settings->config['enable_fetch_from_extract']) && $this->settings->config['enable_fetch_from_extract'];
         $bookingIdColumn = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BookingId'), '', $enableFieldsFindOptions);
-        $bookingIdScript = $doFetchFromExtract ? $this->extractScript : $this->script;
+        $bookingIdScript = $this->extractScript;
         $bookingIdScript = preg_replace('/--COLUMNS[\s\S]+--COLUMNS/', "$bookingIdColumn AS BookingId", $bookingIdScript);
         $newFilterClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $filterClause);
         $newOrderClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $orderClause);
@@ -261,7 +258,7 @@ abstract class APctpWindowTab extends ASerializableClass
             $bookingIds = [];
             $doFetchFromExtract = isset($this->settings->config['enable_fetch_from_extract']) && $this->settings->config['enable_fetch_from_extract'];
             $doRefreshExtractWhenFetching = !(isset($this->settings->config['disable_refresh_extract_when_fetching']) && $this->settings->config['disable_refresh_extract_when_fetching']);
-            if ($this->extractScript !== '' && $doFetchFromExtract) {
+            if ($this->extractScript !== '') {
                 $bookingIdScript = $this->extractScript;
                 $hasAppendedCustomAlias = false;
                 $appendedCustomAlias = '';
@@ -295,7 +292,7 @@ abstract class APctpWindowTab extends ASerializableClass
                 $bookingIdsStr = "'" . join("','", array_map(fn ($z) => $z->BookingId, $bookingIds)) . "'";
             }
             if (!(bool)$partialTableRows) {
-                if ($this->methodTrack === 'getTableRowsDataWithHeaders' && $this->extractScript !== '' && $doFetchFromExtract) {
+                if ($this->methodTrack === 'getTableRowsDataWithHeaders' && $this->extractScript !== '') {
                     $bookingIdColumn = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BookingId'), '', $enableFieldsFindOptions);
                     $filterClause = 'WHERE ' . $bookingIdColumn . " IN ($bookingIdsStr) ";
                     $script = $this->extractScript;
@@ -332,7 +329,7 @@ abstract class APctpWindowTab extends ASerializableClass
         return $resultTableRows;
     }
 
-    public function getTabColumnFindOption(ColumnDefinition $columnDefinition, string $tableAlias, bool $enableFieldsFindOptions): string | array
+    private function getTabColumnFindOption(ColumnDefinition $columnDefinition, string $tableAlias, bool $enableFieldsFindOptions): string | array
     {
         if ($enableFieldsFindOptions && isset($this->fieldsFindOptions[$columnDefinition->fieldName])) {
             $fieldFindOption = $this->fieldsFindOptions[$columnDefinition->fieldName];
