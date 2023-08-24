@@ -95,15 +95,14 @@ class PricingTab extends APctpWindowTab
                 'field' => 'PODSONum',
                 'involveInFindText' => true,
             ],
-            'ClientTag' => [
-                'alias' => 'pod',
-                'field' => 'SAPClient',
-            ],
-            'TruckerTag' => [
-                'alias' => 'pod',
-                'field' => 'SAPTrucker',
-                'involveInFindText' => true,
-            ],
+            // 'ClientTag' => [
+            //     'alias' => 'pod',
+            //     'field' => 'SAPClient',
+            // ],
+            // 'TruckerTag' => [
+            //     'alias' => 'pod',
+            //     'field' => 'SAPTrucker',
+            // ],
             'BookingDate' => [
                 'alias' => 'pod',
                 'field' => 'BookingDate',
@@ -139,7 +138,7 @@ class PricingTab extends APctpWindowTab
             'PODDocNum',
         ];
         $this->searchableFields = [
-            // 'PODDocNum',
+            'PODDocNum',
         ];
         $this->disableSomeFields = [
             'DisableFieldsForBilling' => [
