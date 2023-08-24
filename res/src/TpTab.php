@@ -202,7 +202,7 @@ class TpTab extends APctpWindowTab
                 'field' => 'SAPClient',
                 'needColumnFormat' => true,
             ],
-            'U_TruckerSAP' => [
+            'TruckerSAP' => [
                 'alias' => 'pod',
                 'field' => 'SAPTrucker',
                 'needColumnFormat' => true,
