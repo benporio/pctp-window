@@ -197,11 +197,11 @@ class TpTab extends APctpWindowTab
                 'field' => 'TripTicketNo',
                 'involveInFindText' => true,
             ],
-            'SAPClient' => [
-                'alias' => 'pod',
-                'field' => 'SAPClient',
-                'needColumnFormat' => true,
-            ],
+            // 'SAPClient' => [
+            //     'alias' => 'pod',
+            //     'field' => 'SAPClient',
+            //     'needColumnFormat' => true,
+            // ],
             'TotalAP' => [
                 'alias' => 'TF',
                 'field' => 'TotalAP',

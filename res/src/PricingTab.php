@@ -95,14 +95,14 @@ class PricingTab extends APctpWindowTab
                 'field' => 'PODSONum',
                 'involveInFindText' => true,
             ],
-            'ClientTag' => [
-                'alias' => 'pod',
-                'field' => 'SAPClient',
-            ],
-            'TruckerTag' => [
-                'alias' => 'pod',
-                'field' => 'SAPTrucker',
-            ],
+            // 'ClientTag' => [
+            //     'alias' => 'pod',
+            //     'field' => 'SAPClient',
+            // ],
+            // 'TruckerTag' => [
+            //     'alias' => 'pod',
+            //     'field' => 'SAPTrucker',
+            // ],
             'BookingDate' => [
                 'alias' => 'pod',
                 'field' => 'BookingDate',
