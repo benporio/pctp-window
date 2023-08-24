@@ -332,7 +332,7 @@ abstract class APctpWindowTab extends ASerializableClass
         return $resultTableRows;
     }
 
-    private function getTabColumnFindOption(ColumnDefinition $columnDefinition, string $tableAlias, bool $enableFieldsFindOptions): string | array
+    public function getTabColumnFindOption(ColumnDefinition $columnDefinition, string $tableAlias, bool $enableFieldsFindOptions): string | array
     {
         if ($enableFieldsFindOptions && isset($this->fieldsFindOptions[$columnDefinition->fieldName])) {
             $fieldFindOption = $this->fieldsFindOptions[$columnDefinition->fieldName];
