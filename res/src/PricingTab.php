@@ -102,7 +102,6 @@ class PricingTab extends APctpWindowTab
             'TruckerTag' => [
                 'alias' => 'pod',
                 'field' => 'SAPTrucker',
-                'involveInFindText' => true,
             ],
             'BookingDate' => [
                 'alias' => 'pod',
@@ -139,7 +138,7 @@ class PricingTab extends APctpWindowTab
             'PODDocNum',
         ];
         $this->searchableFields = [
-            // 'PODDocNum',
+            'PODDocNum',
         ];
         $this->disableSomeFields = [
             'DisableFieldsForBilling' => [
