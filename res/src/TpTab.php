@@ -20,7 +20,6 @@ class TpTab extends APctpWindowTab
         $this->script = file_get_contents(__DIR__ . '/../sql/tp.sql');
         $this->extractScript = file_get_contents(__DIR__ . '/../sql/extract/tp_extract_qry.sql');
         $this->preFetchRefreshScripts = [
-            file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_tp_formula.sql'),
             file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_tp_extract.sql')
         ];
         $this->columnDefinitions = [
