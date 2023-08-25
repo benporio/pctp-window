@@ -889,7 +889,13 @@ abstract class APctpWindowTab extends ASerializableClass
 
     private function getRowReferenceByScript(string $whereClause): ?object
     {
-        $result = SAPAccessManager::getInstance()->getRows($this->script . ' ' . $whereClause);
+        $doFetchFromExtract = $this->extractScript !== '' && isset($this->settings->config['enable_fetch_from_extract']) && $this->settings->config['enable_fetch_from_extract'];
+        $script = $this->script;
+        if ($doFetchFromExtract) {
+            $script = $this->extractScript;
+            $whereClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $whereClause);
+        }
+        $result = SAPAccessManager::getInstance()->getRows($script . ' ' . $whereClause);
         if ((bool)$result && isset($result[0])) {
             $newRow = [];
             foreach ((array)$result[0] as $key => $value) {
