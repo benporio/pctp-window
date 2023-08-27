@@ -131,6 +131,33 @@ FROM (
                 AND (TE.U_AddtlChargesN IS NULL OR TE.U_AddtlChargesN = 0)
         ))
     )
+
+    UNION
+    -----> issue #27
+    SELECT 
+        U_BookingNumber,
+        'DUPLICATE' AS ISSUE 
+    FROM SUMMARY_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
+    UNION
+    SELECT 
+        U_BookingNumber,
+        'DUPLICATE' AS ISSUE 
+    FROM POD_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
+    UNION
+    SELECT 
+        U_BookingNumber,
+        'DUPLICATE' AS ISSUE 
+    FROM BILLING_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
+    UNION
+    SELECT 
+        U_BookingNumber,
+        'DUPLICATE' AS ISSUE 
+    FROM TP_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
+    UNION
+    SELECT 
+        U_BookingNumber,
+        'DUPLICATE' AS ISSUE 
+    FROM PRICING_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
     
 ) CONDITIONAL_TARGETS
 -- LEFT JOIN (SELECT U_BookingNumber, U_BookingDate FROM [@PCTP_POD]) X ON X.U_BookingNumber = CONDITIONAL_TARGETS.U_BookingNumber
