@@ -52,20 +52,20 @@ FROM (
     FROM BILLING_EXTRACT BE
     LEFT JOIN PRICING_EXTRACT PE ON PE.U_BookingId = BE.U_BookingId
     WHERE (
-        PE.U_GrossClientRates <> BE.U_GrossInitialRate
-        OR PE.U_Demurrage <> BE.U_Demurrage
-        OR PE.U_TotalAddtlCharges <> BE.U_AddCharges
+        TRY_PARSE(PE.U_GrossClientRates AS FLOAT) <> TRY_PARSE(BE.U_GrossInitialRate AS FLOAT)
+        OR TRY_PARSE(PE.U_Demurrage AS FLOAT) <> TRY_PARSE(BE.U_Demurrage AS FLOAT)
+        OR TRY_PARSE(PE.U_TotalAddtlCharges AS FLOAT) <> TRY_PARSE(BE.U_AddCharges AS FLOAT)
         OR ((
-                (PE.U_GrossClientRates IS NOT NULL AND PE.U_GrossClientRates <> 0)
-                AND (BE.U_GrossInitialRate IS NULL OR BE.U_GrossInitialRate = 0)
+                (TRY_PARSE(PE.U_GrossClientRates AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_GrossClientRates AS FLOAT) <> 0)
+                AND (TRY_PARSE(BE.U_GrossInitialRate AS FLOAT) IS NULL OR TRY_PARSE(BE.U_GrossInitialRate AS FLOAT) = 0)
             )
             OR (
-                (PE.U_Demurrage IS NOT NULL AND PE.U_Demurrage <> 0)
-                AND (BE.U_Demurrage IS NULL OR BE.U_Demurrage = 0)
+                (TRY_PARSE(PE.U_Demurrage AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_Demurrage AS FLOAT) <> 0)
+                AND (TRY_PARSE(BE.U_Demurrage AS FLOAT) IS NULL OR TRY_PARSE(BE.U_Demurrage AS FLOAT) = 0)
             )
             OR (
-                (PE.U_TotalAddtlCharges IS NOT NULL AND PE.U_TotalAddtlCharges <> 0)
-                AND (BE.U_AddCharges IS NULL OR BE.U_AddCharges = 0)
+                (TRY_PARSE(PE.U_TotalAddtlCharges AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_TotalAddtlCharges AS FLOAT) <> 0)
+                AND (TRY_PARSE(BE.U_AddCharges AS FLOAT) IS NULL OR TRY_PARSE(BE.U_AddCharges AS FLOAT) = 0)
         ))
     )
     UNION
@@ -75,62 +75,89 @@ FROM (
     FROM TP_EXTRACT TE
     LEFT JOIN PRICING_EXTRACT PE ON PE.U_BookingId = TE.U_BookingId
     WHERE (
-        PE.U_GrossTruckerRates <> TE.U_GrossTruckerRates
-        OR PE.U_GrossTruckerRatesTax <> TE.U_GrossTruckerRatesN
-        OR PE.U_RateBasisT <> TE.U_RateBasis
-        OR PE.U_Demurrage2 <> TE.U_Demurrage
-        OR PE.U_AddtlDrop2 <> TE.U_AddtlDrop
-        OR PE.U_BoomTruck2 <> TE.U_BoomTruck
-        OR PE.U_Manpower2 <> TE.U_Manpower
-        OR PE.U_Backload2 <> TE.U_BackLoad
-        OR PE.U_totalAddtlCharges2 <> TE.U_Addtlcharges
-        OR PE.U_Demurrage3 <> TE.U_DemurrageN
-        OR PE.U_AddtlCharges <> TE.U_AddtlChargesN
+        TRY_PARSE(PE.U_GrossTruckerRates AS FLOAT) <> TRY_PARSE(TE.U_GrossTruckerRates AS FLOAT)
+        OR TRY_PARSE(PE.U_GrossTruckerRatesTax AS FLOAT) <> TRY_PARSE(TE.U_GrossTruckerRatesN AS FLOAT)
+        OR TRY_PARSE(PE.U_RateBasisT AS FLOAT) <> TRY_PARSE(TE.U_RateBasis AS FLOAT)
+        OR TRY_PARSE(PE.U_Demurrage2 AS FLOAT) <> TRY_PARSE(TE.U_Demurrage AS FLOAT)
+        OR TRY_PARSE(PE.U_AddtlDrop2 AS FLOAT) <> TRY_PARSE(TE.U_AddtlDrop AS FLOAT)
+        OR TRY_PARSE(PE.U_BoomTruck2 AS FLOAT) <> TRY_PARSE(TE.U_BoomTruck AS FLOAT)
+        OR TRY_PARSE(PE.U_Manpower2 AS FLOAT) <> TRY_PARSE(TE.U_Manpower AS FLOAT)
+        OR TRY_PARSE(PE.U_Backload2 AS FLOAT) <> TRY_PARSE(TE.U_BackLoad AS FLOAT)
+        OR TRY_PARSE(PE.U_totalAddtlCharges2 AS FLOAT) <> TRY_PARSE(TE.U_Addtlcharges AS FLOAT)
+        OR TRY_PARSE(PE.U_Demurrage3 AS FLOAT) <> TRY_PARSE(TE.U_DemurrageN AS FLOAT)
+        OR TRY_PARSE(PE.U_AddtlCharges AS FLOAT) <> TRY_PARSE(TE.U_AddtlChargesN AS FLOAT)
         OR ((
-                (PE.U_GrossTruckerRates IS NOT NULL AND PE.U_GrossTruckerRates <> 0)
-                AND (TE.U_GrossTruckerRates IS NULL OR TE.U_GrossTruckerRates = 0)
+                (TRY_PARSE(PE.U_GrossTruckerRates AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_GrossTruckerRates AS FLOAT) <> 0)
+                AND (TRY_PARSE(TE.U_GrossTruckerRates AS FLOAT) IS NULL OR TRY_PARSE(TE.U_GrossTruckerRates AS FLOAT) = 0)
             )
             OR (
-                (PE.U_GrossTruckerRatesTax IS NOT NULL AND PE.U_GrossTruckerRatesTax <> 0)
-                AND (TE.U_GrossTruckerRatesN IS NULL OR TE.U_GrossTruckerRatesN = 0)
+                (TRY_PARSE(PE.U_GrossTruckerRatesTax AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_GrossTruckerRatesTax AS FLOAT) <> 0)
+                AND (TRY_PARSE(TE.U_GrossTruckerRatesN AS FLOAT) IS NULL OR TRY_PARSE(TE.U_GrossTruckerRatesN AS FLOAT) = 0)
             )
             OR (
-                (PE.U_RateBasisT IS NOT NULL AND PE.U_RateBasisT <> '')
-                AND (TE.U_RateBasis IS NULL OR TE.U_RateBasis = '')
+                (TRY_PARSE(PE.U_RateBasisT AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_RateBasisT AS FLOAT) <> '')
+                AND (TRY_PARSE(TE.U_RateBasis AS FLOAT) IS NULL OR TRY_PARSE(TE.U_RateBasis AS FLOAT) = '')
             )
             OR (
-                (PE.U_Demurrage2 IS NOT NULL AND PE.U_Demurrage2 <> 0)
-                AND (TE.U_Demurrage IS NULL OR TE.U_Demurrage = 0)
+                (TRY_PARSE(PE.U_Demurrage2 AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_Demurrage2 AS FLOAT) <> 0)
+                AND (TRY_PARSE(TE.U_Demurrage AS FLOAT) IS NULL OR TRY_PARSE(TE.U_Demurrage AS FLOAT) = 0)
             )
             OR (
-                (PE.U_AddtlDrop2 IS NOT NULL AND PE.U_AddtlDrop2 <> 0)
-                AND (TE.U_AddtlDrop IS NULL OR TE.U_AddtlDrop = 0)
+                (TRY_PARSE(PE.U_AddtlDrop2 AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_AddtlDrop2 AS FLOAT) <> 0)
+                AND (TRY_PARSE(TE.U_AddtlDrop AS FLOAT) IS NULL OR TRY_PARSE(TE.U_AddtlDrop AS FLOAT) = 0)
             )
             OR (
-                (PE.U_BoomTruck2 IS NOT NULL AND PE.U_BoomTruck2 <> 0)
-                AND (TE.U_BoomTruck IS NULL OR TE.U_BoomTruck = 0)
+                (TRY_PARSE(PE.U_BoomTruck2 AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_BoomTruck2 AS FLOAT) <> 0)
+                AND (TRY_PARSE(TE.U_BoomTruck AS FLOAT) IS NULL OR TRY_PARSE(TE.U_BoomTruck AS FLOAT) = 0)
             )
             OR (
-                (PE.U_Manpower2 IS NOT NULL AND PE.U_Manpower2 <> 0)
-                AND (TE.U_Manpower IS NULL OR TE.U_Manpower = 0)
+                (TRY_PARSE(PE.U_Manpower2 AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_Manpower2 AS FLOAT) <> 0)
+                AND (TRY_PARSE(TE.U_Manpower AS FLOAT) IS NULL OR TRY_PARSE(TE.U_Manpower AS FLOAT) = 0)
             )
             OR (
-                (PE.U_Backload2 IS NOT NULL AND PE.U_Backload2 <> 0)
-                AND (TE.U_BackLoad IS NULL OR TE.U_BackLoad = 0)
+                (TRY_PARSE(PE.U_Backload2 AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_Backload2 AS FLOAT) <> 0)
+                AND (TRY_PARSE(TE.U_BackLoad AS FLOAT) IS NULL OR TRY_PARSE(TE.U_BackLoad AS FLOAT) = 0)
             )
             OR (
-                (PE.U_totalAddtlCharges2 IS NOT NULL AND PE.U_totalAddtlCharges2 <> 0)
-                AND (TE.U_Addtlcharges IS NULL OR TE.U_Addtlcharges = 0)
+                (TRY_PARSE(PE.U_totalAddtlCharges2 AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_totalAddtlCharges2 AS FLOAT) <> 0)
+                AND (TRY_PARSE(TE.U_Addtlcharges AS FLOAT) IS NULL OR TRY_PARSE(TE.U_Addtlcharges AS FLOAT) = 0)
             )
             OR (
-                (PE.U_Demurrage3 IS NOT NULL AND PE.U_Demurrage3 <> 0)
-                AND (TE.U_DemurrageN IS NULL OR TE.U_DemurrageN = 0)
+                (TRY_PARSE(PE.U_Demurrage3 AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_Demurrage3 AS FLOAT) <> 0)
+                AND (TRY_PARSE(TE.U_DemurrageN AS FLOAT) IS NULL OR TRY_PARSE(TE.U_DemurrageN AS FLOAT) = 0)
             )
             OR (
-                (PE.U_AddtlCharges IS NOT NULL AND PE.U_AddtlCharges <> 0)
-                AND (TE.U_AddtlChargesN IS NULL OR TE.U_AddtlChargesN = 0)
+                (TRY_PARSE(PE.U_AddtlCharges AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_AddtlCharges AS FLOAT) <> 0)
+                AND (TRY_PARSE(TE.U_AddtlChargesN AS FLOAT) IS NULL OR TRY_PARSE(TE.U_AddtlChargesN AS FLOAT) = 0)
         ))
     )
+
+    UNION
+    -----> issue #27
+    SELECT 
+        U_BookingNumber,
+        'DUPLICATE' AS ISSUE 
+    FROM SUMMARY_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
+    UNION
+    SELECT 
+        U_BookingNumber,
+        'DUPLICATE' AS ISSUE 
+    FROM POD_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
+    UNION
+    SELECT 
+        U_BookingNumber,
+        'DUPLICATE' AS ISSUE 
+    FROM BILLING_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
+    UNION
+    SELECT 
+        U_BookingNumber,
+        'DUPLICATE' AS ISSUE 
+    FROM TP_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
+    UNION
+    SELECT 
+        U_BookingNumber,
+        'DUPLICATE' AS ISSUE 
+    FROM PRICING_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
     
 ) CONDITIONAL_TARGETS
 -- LEFT JOIN (SELECT U_BookingNumber, U_BookingDate FROM [@PCTP_POD]) X ON X.U_BookingNumber = CONDITIONAL_TARGETS.U_BookingNumber
