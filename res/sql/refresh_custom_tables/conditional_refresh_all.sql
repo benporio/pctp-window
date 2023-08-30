@@ -3,13 +3,29 @@ SELECT
 *
 INTO TMP_TARGET_$serial 
 FROM (
+    -----> issue #30
+	SELECT DISTINCT 
+		BILLING.U_BookingId AS U_BookingNumber,
+        'SO-RELATED-BN' AS ISSUE
+	FROM [@PCTP_BILLING] BILLING
+	-- LEFT JOIN [@PCTP_POD] POD ON POD.U_BookingNumber = BILLING.U_BookingId
+	WHERE EXISTS(
+		SELECT
+			1
+		FROM ORDR header
+			LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
+		WHERE line.ItemCode = BILLING.U_BookingId
+			AND header.CANCELED = 'N'
+			AND header.DocNum IN (3698)
+	)
+	UNION
     -----> issue #20
     SELECT
         SE.U_BookingNumber,
         'SUMMARY-BILLING-DATA-INCONSISTENCY' AS ISSUE
     FROM SUMMARY_EXTRACT SE
     LEFT JOIN BILLING_EXTRACT BE ON BE.U_BookingId = SE.U_BookingNumber
-    WHERE (
+    WHERE ((
         (BE.U_BillingStatus <> SE.U_BillingStatus AND REPLACE(BE.U_BillingStatus, ' ', '') <> REPLACE(SE.U_BillingStatus, ' ', '')) 
         OR (
             (
@@ -22,9 +38,50 @@ FROM (
             )
         )
     )
-    OR BE.U_InvoiceNo <> SE.U_InvoiceNo
-    OR BE.U_PODSONum <> SE.U_PODSONum
-    OR BE.U_DocNum <> SE.U_ARDocNum
+    OR (
+		(BE.U_InvoiceNo <> SE.U_InvoiceNo AND REPLACE(BE.U_InvoiceNo, ' ', '') <> REPLACE(SE.U_InvoiceNo, ' ', '')) 
+		OR (
+			(
+				BE.U_InvoiceNo IS NOT NULL AND REPLACE(BE.U_InvoiceNo, ' ', '') <> '' 
+				AND (SE.U_InvoiceNo IS NULL OR REPLACE(SE.U_InvoiceNo, ' ', '') = '')
+			)
+			OR (
+				SE.U_InvoiceNo IS NOT NULL AND REPLACE(SE.U_InvoiceNo, ' ', '') <> '' 
+				AND (BE.U_InvoiceNo IS NULL OR REPLACE(BE.U_InvoiceNo, ' ', '') = '')
+			)
+		)
+	)
+	-- OR BE.U_InvoiceNo <> SE.U_InvoiceNo
+	OR (
+		(BE.U_PODSONum <> SE.U_PODSONum AND REPLACE(BE.U_PODSONum, ' ', '') <> REPLACE(SE.U_PODSONum, ' ', '')) 
+		OR (
+			(
+				BE.U_PODSONum IS NOT NULL AND REPLACE(BE.U_PODSONum, ' ', '') <> '' 
+				AND (SE.U_PODSONum IS NULL OR REPLACE(SE.U_PODSONum, ' ', '') = '')
+			)
+			OR (
+				SE.U_PODSONum IS NOT NULL AND REPLACE(SE.U_PODSONum, ' ', '') <> '' 
+				AND (BE.U_PODSONum IS NULL OR REPLACE(BE.U_PODSONum, ' ', '') = '')
+			)
+		)
+	)
+	-- OR BE.U_PODSONum <> SE.U_PODSONum
+	OR (
+		(BE.U_DocNum <> SE.U_ARDocNum AND REPLACE(BE.U_DocNum, ' ', '') <> REPLACE(SE.U_ARDocNum, ' ', '')) 
+		OR (
+			(
+				BE.U_DocNum IS NOT NULL AND REPLACE(BE.U_DocNum, ' ', '') <> '' 
+				AND (SE.U_ARDocNum IS NULL OR REPLACE(SE.U_ARDocNum, ' ', '') = '')
+			)
+			OR (
+				SE.U_ARDocNum IS NOT NULL AND REPLACE(SE.U_ARDocNum, ' ', '') <> '' 
+				AND (BE.U_DocNum IS NULL OR REPLACE(BE.U_DocNum, ' ', '') = '')
+			)
+		)
+	))
+	AND BE.U_BookingId IS NOT NULL
+	--AND SE.U_BookingDate >= '2023-07-01'
+	--AND SE.U_BookingDate <= '2023-08-30'
 
     UNION
     -----> issue #22
