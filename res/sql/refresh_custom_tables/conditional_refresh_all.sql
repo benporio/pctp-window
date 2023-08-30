@@ -3,6 +3,22 @@ SELECT
 *
 INTO TMP_TARGET_$serial 
 FROM (
+    -----> issue #30
+	SELECT DISTINCT 
+		BILLING.U_BookingId AS U_BookingNumber,
+        'SO-RELATED-BN' AS ISSUE
+	FROM [@PCTP_BILLING] BILLING
+	-- LEFT JOIN [@PCTP_POD] POD ON POD.U_BookingNumber = BILLING.U_BookingId
+	WHERE EXISTS(
+		SELECT
+			1
+		FROM ORDR header
+			LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
+		WHERE line.ItemCode = BILLING.U_BookingId
+			AND header.CANCELED = 'N'
+			AND header.DocNum IN (3698)
+	)
+	UNION
     -----> issue #20
     SELECT
         SE.U_BookingNumber,
