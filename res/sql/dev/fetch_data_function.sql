@@ -3511,7 +3511,7 @@ BEGIN
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_GrossClientRatesTax') THEN
                 CASE
-                    WHEN @TabName = 'PRICING' THEN 
+                    WHEN @TabName = 'PRICING' OR @TabName = 'SUMMARY' THEN 
                         CASE
                             WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN PRICING.U_GrossClientRates
                             WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (PRICING.U_GrossClientRates / 1.12)
