@@ -9,7 +9,7 @@
     "use_data_table_setting_length": true,
     "data_table_common_find_header": false,
     "control_key_row_selection": false,
-    "run_formulas_on_row_init": true,
+    "run_formulas_on_row_init": false,
     "constants_refresh_waiting_time": 10000,
     "auto_hide_attachment_modal_upon_upload_remove": true,
     "multiple_rates_selection": {
