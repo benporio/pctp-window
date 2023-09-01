@@ -3234,7 +3234,7 @@ BEGIN
         END AS U_PODSONum,
         CAST(client.CardName AS nvarchar(500)) AS U_CustomerName,
         PRICING.U_GrossClientRates AS U_GrossClientRates,
-        PRICING.U_GrossClientRates AS U_GrossInitialRate,
+        PRICING.U_GrossClientRates AS U_GrossInitialRate, --BILLING.U_GrossInitialRate
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_Demurrage') THEN
                 CASE
@@ -3891,7 +3891,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalRecClients') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'BILLING' OR @TabName = 'PRICING' THEN
-                        ISNULL(PRICING.U_GrossClientRates, 0) 
+                        ISNULL(PRICING.U_GrossClientRates, 0) --BILLING.U_GrossInitialRate
                         + ISNULL(PRICING.U_Demurrage, 0)
                         + (ISNULL(PRICING.U_AddtlDrop,0) + 
                         ISNULL(PRICING.U_BoomTruck,0) + 
@@ -4027,7 +4027,7 @@ BEGIN
                         FROM OINV H
                             LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
                         WHERE H.CANCELED = 'N' AND L.ItemCode = POD.U_BookingNumber), 0) 
-                        - (ISNULL(PRICING.U_GrossClientRates, 0) 
+                        - (ISNULL(PRICING.U_GrossClientRates, 0) --BILLING.U_GrossInitialRate
                         + ISNULL(PRICING.U_Demurrage, 0)
                         + (ISNULL(PRICING.U_AddtlDrop,0) + 
                         ISNULL(PRICING.U_BoomTruck,0) + 
