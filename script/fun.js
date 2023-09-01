@@ -2761,6 +2761,7 @@ class PctpWindowView extends AbsWebSocketCaller {
         });
     }
     renderRowFormulas(tab, jRow) {
+        if (!this.#viewOptions.run_formulas_on_row_init) return;
         jRow.find('*[data-pctp-formula]').each(function () {
             let jElement = $(this);
             let formula = jElement.data('pctpFormula');
