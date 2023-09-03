@@ -2882,7 +2882,7 @@ BEGIN
             CASE
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_LostPenaltyCalc') THEN
                     CASE
-                        WHEN @TabName = 'TP' OR @TabName = 'POD' THEN
+                        WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
                             dbo.computeLostPenaltyCalc(
                                 dbo.computePODStatusPayment(
                                     dbo.computeOverdueDays(
@@ -2897,14 +2897,14 @@ BEGIN
                                 pod.U_InitialHCRecDate,
                                 pod.U_DeliveryDateDTR,
                                 CASE
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN pricing.U_GrossTruckerRates
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (pricing.U_GrossTruckerRates / 1.12)
+                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_GrossTruckerRates, 0)
+                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_GrossTruckerRates, 0) / 1.12)
                                 END + CASE
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN pricing.U_Demurrage2
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (pricing.U_Demurrage2 / 1.12)
+                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_Demurrage2, 0)
+                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_Demurrage2, 0) / 1.12)
                                 END + CASE
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (pricing.U_AddtlDrop + pricing.U_BoomTruck + pricing.U_Manpower + pricing.U_Backload)
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((pricing.U_AddtlDrop + pricing.U_BoomTruck + pricing.U_Manpower + pricing.U_Backload) / 1.12)
+                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (ISNULL(pricing.U_AddtlDrop2, 0) + ISNULL(pricing.U_BoomTruck2, 0) + ISNULL(pricing.U_Manpower2, 0) + ISNULL(pricing.U_Backload2, 0))
+                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((ISNULL(pricing.U_AddtlDrop2, 0) + ISNULL(pricing.U_BoomTruck2, 0) + ISNULL(pricing.U_Manpower2, 0) + ISNULL(pricing.U_Backload2, 0)) / 1.12)
                                 END
                                 -- pricing.U_TotalInitialTruckers
                             )
@@ -2915,7 +2915,7 @@ BEGIN
             CASE
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalSubPenalty') THEN
                     CASE
-                        WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                        WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
                             ISNULL(ABS(dbo.computeTotalSubPenalties(
                                 dbo.computeClientPenaltyCalc(
                                     dbo.computeClientSubOverdue(
@@ -2959,14 +2959,14 @@ BEGIN
                                     pod.U_InitialHCRecDate,
                                     pod.U_DeliveryDateDTR,
                                     CASE
-                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN pricing.U_GrossTruckerRates
-                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (pricing.U_GrossTruckerRates / 1.12)
+                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_GrossTruckerRates, 0)
+                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_GrossTruckerRates, 0) / 1.12)
                                     END + CASE
-                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN pricing.U_Demurrage2
-                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (pricing.U_Demurrage2 / 1.12)
+                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_Demurrage2, 0)
+                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_Demurrage2, 0) / 1.12)
                                     END + CASE
-                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (pricing.U_AddtlDrop + pricing.U_BoomTruck + pricing.U_Manpower + pricing.U_Backload)
-                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((pricing.U_AddtlDrop + pricing.U_BoomTruck + pricing.U_Manpower + pricing.U_Backload) / 1.12)
+                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (ISNULL(pricing.U_AddtlDrop2, 0) + ISNULL(pricing.U_BoomTruck2, 0) + ISNULL(pricing.U_Manpower2, 0) + ISNULL(pricing.U_Backload2, 0))
+                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((ISNULL(pricing.U_AddtlDrop2, 0) + ISNULL(pricing.U_BoomTruck2, 0) + ISNULL(pricing.U_Manpower2, 0) + ISNULL(pricing.U_Backload2, 0)) / 1.12)
                                     END
                                     -- pricing.U_TotalInitialTruckers
                                 ),
@@ -3024,14 +3024,14 @@ BEGIN
                                         pod.U_InitialHCRecDate,
                                         pod.U_DeliveryDateDTR,
                                         CASE
-                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN pricing.U_GrossTruckerRates
-                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (pricing.U_GrossTruckerRates / 1.12)
+                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_GrossTruckerRates, 0)
+                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_GrossTruckerRates, 0) / 1.12)
                                         END + CASE
-                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN pricing.U_Demurrage2
-                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (pricing.U_Demurrage2 / 1.12)
+                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_Demurrage2, 0)
+                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_Demurrage2, 0) / 1.12)
                                         END + CASE
-                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (pricing.U_AddtlDrop + pricing.U_BoomTruck + pricing.U_Manpower + pricing.U_Backload)
-                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((pricing.U_AddtlDrop + pricing.U_BoomTruck + pricing.U_Manpower + pricing.U_Backload) / 1.12)
+                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (ISNULL(pricing.U_AddtlDrop2, 0) + ISNULL(pricing.U_BoomTruck2, 0) + ISNULL(pricing.U_Manpower2, 0) + ISNULL(pricing.U_Backload2, 0))
+                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((ISNULL(pricing.U_AddtlDrop2, 0) + ISNULL(pricing.U_BoomTruck2, 0) + ISNULL(pricing.U_Manpower2, 0) + ISNULL(pricing.U_Backload2, 0)) / 1.12)
                                         END
                                         -- pricing.U_TotalInitialTruckers
                                     ),
@@ -3046,7 +3046,7 @@ BEGIN
             CASE
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_InteluckPenaltyCalc') THEN
                     CASE
-                        WHEN @TabName = 'TP' OR @TabName = 'POD' THEN
+                        WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
                             dbo.computeInteluckPenaltyCalc(
                                 dbo.computePODStatusPayment(
                                     dbo.computeOverdueDays(
@@ -3074,7 +3074,7 @@ BEGIN
             CASE
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_ClientSubOverdue') THEN
                     CASE
-                        WHEN @TabName = 'TP' OR @TabName = 'POD' THEN
+                        WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
                             dbo.computeClientSubOverdue(
                                 pod.U_DeliveryDateDTR,
                                 pod.U_ClientReceivedDate,
@@ -3088,7 +3088,7 @@ BEGIN
             CASE
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_ClientPenaltyCalc') THEN
                     CASE
-                        WHEN @TabName = 'TP' OR @TabName = 'POD' THEN
+                        WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
                             dbo.computeClientPenaltyCalc(
                                 dbo.computeClientSubOverdue(
                                     pod.U_DeliveryDateDTR,
@@ -3234,7 +3234,19 @@ BEGIN
         END AS U_PODSONum,
         CAST(client.CardName AS nvarchar(500)) AS U_CustomerName,
         PRICING.U_GrossClientRates AS U_GrossClientRates,
-        PRICING.U_GrossClientRates AS U_GrossInitialRate,
+        CASE
+            WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_GrossInitialRate') THEN
+                CASE
+                    WHEN @TabName = 'BILLING' THEN 
+                        CASE
+                            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossClientRates, 0)
+                            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossClientRates, 0) / 1.12)
+                        END
+                    ELSE NULL
+                END
+            ELSE NULL
+        END AS U_GrossInitialRate,
+        -- PRICING.U_GrossClientRates AS U_GrossInitialRate, --BILLING.U_GrossInitialRate
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_Demurrage') THEN
                 CASE
@@ -3511,10 +3523,10 @@ BEGIN
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_GrossClientRatesTax') THEN
                 CASE
-                    WHEN @TabName = 'PRICING' OR @TabName = 'SUMMARY' THEN 
+                    WHEN @TabName = 'PRICING' OR @TabName = 'BILLING' OR @TabName = 'SUMMARY' THEN 
                         CASE
-                            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN PRICING.U_GrossClientRates
-                            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (PRICING.U_GrossClientRates / 1.12)
+                            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossClientRates, 0)
+                            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossClientRates, 0) / 1.12)
                         END
                     ELSE NULL
                 END
@@ -3855,7 +3867,7 @@ BEGIN
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_ClientSubOverdue') THEN
                 CASE
-                    WHEN @TabName = 'TP' OR @TabName = 'POD' THEN TF.U_ClientSubOverdue
+                    WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'POD' THEN TF.U_ClientSubOverdue
                     ELSE NULL
                 END
             ELSE NULL
@@ -3863,7 +3875,7 @@ BEGIN
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_ClientPenaltyCalc') THEN
                 CASE
-                    WHEN @TabName = 'TP' OR @TabName = 'POD' THEN TF.U_ClientPenaltyCalc
+                    WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'POD' THEN TF.U_ClientPenaltyCalc
                     ELSE NULL
                 END
             ELSE NULL
@@ -3871,7 +3883,7 @@ BEGIN
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_PODStatusPayment') THEN
                 CASE
-                    WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' THEN 
+                    WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' THEN 
                         dbo.computePODStatusPayment(
                             dbo.computeOverdueDays(
                                 POD.U_ActualHCRecDate,
@@ -3891,7 +3903,12 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalRecClients') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'BILLING' OR @TabName = 'PRICING' THEN
-                        ISNULL(PRICING.U_GrossClientRates, 0) 
+                        (
+                            CASE
+                                WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossClientRates, 0)
+                                WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossClientRates, 0) / 1.12)
+                            END
+                        ) --BILLING.U_GrossInitialRate
                         + ISNULL(PRICING.U_Demurrage, 0)
                         + (ISNULL(PRICING.U_AddtlDrop,0) + 
                         ISNULL(PRICING.U_BoomTruck,0) + 
@@ -3962,7 +3979,7 @@ BEGIN
             ELSE NULL
         END AS U_TotalPayable,
         CASE
-            WHEN @TabName = 'TP' THEN ISNULL(TF.U_TotalSubPenalty, 0)
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN ISNULL(TF.U_TotalSubPenalty, 0)
             ELSE NULL
         END AS U_TotalSubPenalty,
         CASE
@@ -4027,7 +4044,12 @@ BEGIN
                         FROM OINV H
                             LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
                         WHERE H.CANCELED = 'N' AND L.ItemCode = POD.U_BookingNumber), 0) 
-                        - (ISNULL(PRICING.U_GrossClientRates, 0) 
+                        - ((
+                            CASE
+                                WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossClientRates, 0)
+                                WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossClientRates, 0) / 1.12)
+                            END
+                        ) --BILLING.U_GrossInitialRate
                         + ISNULL(PRICING.U_Demurrage, 0)
                         + (ISNULL(PRICING.U_AddtlDrop,0) + 
                         ISNULL(PRICING.U_BoomTruck,0) + 
@@ -4089,7 +4111,7 @@ BEGIN
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_InteluckPenaltyCalc') THEN
                 CASE
-                    WHEN @TabName = 'TP' OR @TabName = 'POD' THEN TF.U_InteluckPenaltyCalc
+                    WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'POD' THEN TF.U_InteluckPenaltyCalc
                     ELSE NULL
                 END
             ELSE NULL
@@ -4100,7 +4122,7 @@ BEGIN
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_LostPenaltyCalc') THEN
                 CASE
-                    WHEN @TabName = 'TP' OR @TabName = 'POD' THEN TF.U_LostPenaltyCalc
+                    WHEN @TabName = 'TP' OR @TabName = 'POD' OR @TabName = 'SUMMARY' THEN TF.U_LostPenaltyCalc
                     ELSE NULL
                 END
             ELSE NULL
@@ -4152,14 +4174,14 @@ BEGIN
                                 POD.U_InitialHCRecDate,
                                 POD.U_DeliveryDateDTR,
                                 CASE
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN PRICING.U_GrossTruckerRates
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (PRICING.U_GrossTruckerRates / 1.12)
+                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossTruckerRates, 0)
+                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossTruckerRates, 0) / 1.12)
                                 END + CASE
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN PRICING.U_Demurrage2
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (PRICING.U_Demurrage2 / 1.12)
+                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_Demurrage2, 0)
+                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_Demurrage2, 0) / 1.12)
                                 END + CASE
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (PRICING.U_AddtlDrop + PRICING.U_BoomTruck + PRICING.U_Manpower + PRICING.U_Backload)
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((PRICING.U_AddtlDrop + PRICING.U_BoomTruck + PRICING.U_Manpower + PRICING.U_Backload) / 1.12)
+                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (ISNULL(PRICING.U_AddtlDrop2, 0) + ISNULL(PRICING.U_BoomTruck2, 0) + ISNULL(PRICING.U_Manpower2, 0) + ISNULL(PRICING.U_Backload2, 0))
+                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((ISNULL(PRICING.U_AddtlDrop2, 0) + ISNULL(PRICING.U_BoomTruck2, 0) + ISNULL(PRICING.U_Manpower2, 0) + ISNULL(PRICING.U_Backload2, 0)) / 1.12)
                                 END
                             ),
                             ISNULL(POD.U_PenaltiesManual,0)
@@ -4175,12 +4197,12 @@ BEGIN
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalPenaltyWaived') THEN
                 CASE
-                    WHEN @TabName = 'POD' OR @TabName = 'TP' THEN ISNULL(TF.U_TotalPenaltyWaived, 0)
+                    WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' THEN ISNULL(TF.U_TotalPenaltyWaived, 0)
                     ELSE NULL
                 END
             ELSE NULL
         END AS U_TotalPenaltyWaived,
-        ISNULL(TP.U_TotalPenalty, 0) AS U_TotalPenalty,
+        ABS(ISNULL(TF.U_TotalSubPenalty, 0) - ISNULL(TF.U_TotalPenaltyWaived, 0)) AS U_TotalPenalty,
         ISNULL(TP.U_TotalPayableRec, 0) AS U_TotalPayableRec,
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_APDocNum') THEN
