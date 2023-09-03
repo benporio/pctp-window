@@ -179,16 +179,29 @@ class PricingTab extends APctpWindowTab
                                 'acceptedValuesRegex' => '',
                                 'invalidValues' => [],
                                 'result' => (object)[
+                                    // 'success' => (object)[
+                                    //     'callback' => 'changeFieldValueFromOtherTab',
+                                    //     'arg' => (object)[
+                                    //         'tab' => 'pricing',
+                                    //         'refField' => 'PODNum',
+                                    //         'otherTab' => 'billing',
+                                    //         'foreignField' => 'PODNum',
+                                    //         'field' => 'GrossInitialRate',
+                                    //         'value' => 'self',
+                                    //         'bool' => true
+                                    //     ]
+                                    // ],
                                     'success' => (object)[
-                                        'callback' => 'changeFieldValueFromOtherTab',
+                                        'callback' => 'changeFieldValueFromOtherTabByFormula',
                                         'arg' => (object)[
                                             'tab' => 'pricing',
                                             'refField' => 'PODNum',
                                             'otherTab' => 'billing',
                                             'foreignField' => 'PODNum',
                                             'field' => 'GrossInitialRate',
-                                            'value' => 'self',
-                                            'bool' => true
+                                            'formula' => '_GrossClientRatesTax',
+                                            'bool' => true,
+                                            'useFormulaInsideRow' => true
                                         ]
                                     ]
                                 ]
@@ -201,6 +214,24 @@ class PricingTab extends APctpWindowTab
                                     ]
                                 ]
                             ]
+                        ],
+                        (object)[
+                            'values' => [],
+                            'for' => [''],
+                            'observee' => (object)[
+                                'fields' => [],
+                                'acceptedValuesRegex' => '',
+                                'invalidValues' => [],
+                                'result' => (object)[
+                                    'success' => (object)[
+                                        'callback' => 'changeOtherFieldByFormula',
+                                        'arg' => (object)[
+                                            'field' => '_GrossClientRatesTax',
+                                            'formula' => '_GrossClientRatesTax',
+                                        ]
+                                    ]
+                                ]
+                            ],
                         ],
                     ]
                 ]
@@ -559,6 +590,24 @@ class PricingTab extends APctpWindowTab
                                             'refField' => 'PODNum',
                                             'fieldName' => 'TotalInitialTruckers',
                                             'fieldFormula' => '_TotalInitialTruckers'
+                                        ]
+                                    ]
+                                ]
+                            ],
+                        ],
+                        (object)[
+                            'values' => [],
+                            'for' => [''],
+                            'observee' => (object)[
+                                'fields' => [],
+                                'acceptedValuesRegex' => '',
+                                'invalidValues' => [],
+                                'result' => (object)[
+                                    'success' => (object)[
+                                        'callback' => 'changeOtherFieldByFormula',
+                                        'arg' => (object)[
+                                            'field' => '_GrossTruckerRatesTax',
+                                            'formula' => '_GrossTruckerRatesTax',
                                         ]
                                     ]
                                 ]
