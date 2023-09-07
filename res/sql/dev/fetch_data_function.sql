@@ -3277,7 +3277,8 @@ BEGIN
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_BoomTruck2') THEN
                 CASE
-                    WHEN @TabName = 'TP' OR @TabName = 'PRICING' THEN ISNULL(TP.U_BoomTruck2, 0)
+                    WHEN @TabName = 'TP' THEN ISNULL(TP.U_BoomTruck2, 0)
+                    WHEN @TabName = 'PRICING' THEN ISNULL(PRICING.U_BoomTruck2, 0)
                     ELSE NULL
                 END
             ELSE NULL

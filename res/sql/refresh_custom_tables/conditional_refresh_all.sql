@@ -7,12 +7,12 @@ FROM (
 	SELECT DISTINCT 
 		BILLING.U_BookingId AS U_BookingNumber,
         'SO-RELATED-BN' AS ISSUE
-	FROM [@PCTP_BILLING] BILLING
+	FROM [@PCTP_BILLING] BILLING WITH(NOLOCK)
 	-- LEFT JOIN [@PCTP_POD] POD ON POD.U_BookingNumber = BILLING.U_BookingId
 	WHERE EXISTS(
 		SELECT
 			1
-		FROM ORDR header
+		FROM ORDR header WITH(NOLOCK)
 			LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
 		WHERE line.ItemCode = BILLING.U_BookingId
 			AND header.CANCELED = 'N'
@@ -23,7 +23,7 @@ FROM (
     SELECT
         SE.U_BookingNumber,
         'SUMMARY-BILLING-DATA-INCONSISTENCY' AS ISSUE
-    FROM SUMMARY_EXTRACT SE
+    FROM SUMMARY_EXTRACT SE WITH(NOLOCK)
     LEFT JOIN BILLING_EXTRACT BE ON BE.U_BookingId = SE.U_BookingNumber
     WHERE ((
         (BE.U_BillingStatus <> SE.U_BillingStatus AND REPLACE(BE.U_BillingStatus, ' ', '') <> REPLACE(SE.U_BillingStatus, ' ', '')) 
@@ -88,32 +88,32 @@ FROM (
     SELECT
         T0.U_BookingNumber,
         'TP-BILLING-VERIFIED-NOT-REFLECTED' AS ISSUE
-    FROM [dbo].[@PCTP_POD] T0
+    FROM [dbo].[@PCTP_POD] T0 WITH(NOLOCK)
     WHERE 1=1
     AND (CAST(T0.U_PODStatusDetail as nvarchar(max)) LIKE '%Verified%' OR CAST(T0.U_PODStatusDetail as nvarchar(max)) LIKE '%ForAdvanceBilling%')
-    AND T0.U_BookingNumber NOT IN (SELECT U_BookingId FROM BILLING_EXTRACT)
+    AND T0.U_BookingNumber NOT IN (SELECT U_BookingId FROM BILLING_EXTRACT WITH(NOLOCK))
     UNION
     SELECT
         T0.U_BookingNumber,
         'TP-BILLING-VERIFIED-NOT-REFLECTED' AS ISSUE
-    FROM [dbo].[@PCTP_POD] T0
+    FROM [dbo].[@PCTP_POD] T0 WITH(NOLOCK)
     WHERE 1=1
     AND (CAST(T0.U_PODStatusDetail as nvarchar(max)) LIKE '%Verified%')
-    AND T0.U_BookingNumber NOT IN (SELECT U_BookingId FROM TP_EXTRACT)
+    AND T0.U_BookingNumber NOT IN (SELECT U_BookingId FROM TP_EXTRACT WITH(NOLOCK))
 
     UNION
     -----> issue #23
     SELECT
         BE.U_BookingId AS U_BookingNumber,
         'BILLING-TP-PRICING-DATA-INCONSISTENCY' AS ISSUE
-    FROM BILLING_EXTRACT BE
+    FROM BILLING_EXTRACT BE WITH(NOLOCK)
     LEFT JOIN PRICING_EXTRACT PE ON PE.U_BookingId = BE.U_BookingId
     WHERE (
-        TRY_PARSE(PE.U_GrossClientRates AS FLOAT) <> TRY_PARSE(BE.U_GrossInitialRate AS FLOAT)
+        TRY_PARSE(PE.U_GrossClientRatesTax AS FLOAT) <> TRY_PARSE(BE.U_GrossInitialRate AS FLOAT)
         OR TRY_PARSE(PE.U_Demurrage AS FLOAT) <> TRY_PARSE(BE.U_Demurrage AS FLOAT)
         OR TRY_PARSE(PE.U_TotalAddtlCharges AS FLOAT) <> TRY_PARSE(BE.U_AddCharges AS FLOAT)
         OR ((
-                (TRY_PARSE(PE.U_GrossClientRates AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_GrossClientRates AS FLOAT) <> 0)
+                (TRY_PARSE(PE.U_GrossClientRatesTax AS FLOAT) IS NOT NULL AND TRY_PARSE(PE.U_GrossClientRatesTax AS FLOAT) <> 0)
                 AND (TRY_PARSE(BE.U_GrossInitialRate AS FLOAT) IS NULL OR TRY_PARSE(BE.U_GrossInitialRate AS FLOAT) = 0)
             )
             OR (
@@ -129,7 +129,7 @@ FROM (
     SELECT
         TE.U_BookingId AS U_BookingNumber,
         'BILLING-TP-PRICING-DATA-INCONSISTENCY' AS ISSUE
-    FROM TP_EXTRACT TE
+    FROM TP_EXTRACT TE WITH(NOLOCK)
     LEFT JOIN PRICING_EXTRACT PE ON PE.U_BookingId = TE.U_BookingId
     WHERE (
         TRY_PARSE(PE.U_GrossTruckerRates AS FLOAT) <> TRY_PARSE(TE.U_GrossTruckerRates AS FLOAT)
@@ -194,30 +194,31 @@ FROM (
     SELECT 
         U_BookingNumber,
         'DUPLICATE' AS ISSUE 
-    FROM SUMMARY_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
+    FROM SUMMARY_EXTRACT WITH(NOLOCK) GROUP BY U_BookingNumber HAVING COUNT(*) > 1
     UNION
     SELECT 
         U_BookingNumber,
         'DUPLICATE' AS ISSUE 
-    FROM POD_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
+    FROM POD_EXTRACT WITH(NOLOCK) GROUP BY U_BookingNumber HAVING COUNT(*) > 1
     UNION
     SELECT 
         U_BookingNumber,
         'DUPLICATE' AS ISSUE 
-    FROM BILLING_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
+    FROM BILLING_EXTRACT WITH(NOLOCK) GROUP BY U_BookingNumber HAVING COUNT(*) > 1
     UNION
     SELECT 
         U_BookingNumber,
         'DUPLICATE' AS ISSUE 
-    FROM TP_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
+    FROM TP_EXTRACT WITH(NOLOCK) GROUP BY U_BookingNumber HAVING COUNT(*) > 1
     UNION
     SELECT 
         U_BookingNumber,
         'DUPLICATE' AS ISSUE 
-    FROM PRICING_EXTRACT GROUP BY U_BookingNumber HAVING COUNT(*) > 1
+    FROM PRICING_EXTRACT WITH(NOLOCK) GROUP BY U_BookingNumber HAVING COUNT(*) > 1
     
 ) CONDITIONAL_TARGETS
 -- LEFT JOIN (SELECT U_BookingNumber, U_BookingDate FROM [@PCTP_POD]) X ON X.U_BookingNumber = CONDITIONAL_TARGETS.U_BookingNumber
+WHERE U_BookingNumber IS NOT NULL
 -- ORDER BY U_BookingDate DESC, ISSUE ASC
 ;
 
