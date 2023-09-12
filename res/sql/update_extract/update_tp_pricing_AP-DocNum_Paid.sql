@@ -3,41 +3,27 @@
 DROP TABLE IF EXISTS TMP_TARGET_20230912
 SELECT
     POD.U_BookingNumber,
-    CAST((
-            SELECT DISTINCT
-        SUBSTRING(
-                (
-                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
-        FROM PCH1 line WITH (NOLOCK)
-            LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-        WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
-            or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-        FOR XML PATH (''), TYPE
-                ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-    FROM OPCH header WITH (NOLOCK)
-        LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-    WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%'))
-    as nvarchar(max)) AS U_DocNum,
-    CAST((
-            SELECT DISTINCT
-        SUBSTRING(
-                (
-                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
-        FROM PCH1 line WITH (NOLOCK)
-            LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-        WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
-            or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-        FOR XML PATH (''), TYPE
-                ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-    FROM OPCH header WITH (NOLOCK)
-        LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-    WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%'))
-    as nvarchar(max)) As U_Paid
+    CAST(SUBSTRING(
+            (
+                SELECT CONCAT(', ', header.DocNum)  AS [text()]
+    FROM PCH1 line WITH (NOLOCK)
+        LEFT JOIN (SELECT DocNum, DocEntry, CANCELED, PaidSum, U_PVNo FROM OPCH WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
+    WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
+        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
+    FOR XML PATH (''), TYPE
+            ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(max)) AS U_DocNum,
+    CAST(SUBSTRING(
+            (
+                SELECT CONCAT(', ', header.DocNum)  AS [text()]
+    FROM PCH1 line WITH (NOLOCK)
+        LEFT JOIN (SELECT DocNum, DocEntry, CANCELED, PaidSum, U_PVNo FROM OPCH WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
+    WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
+        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
+    FOR XML PATH (''), TYPE
+            ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(max)) As U_Paid
 INTO TMP_TARGET_20230912
 FROM [dbo].[@PCTP_TP] T0 WITH (NOLOCK)
-    INNER JOIN [dbo].[@PCTP_POD] POD ON T0.U_BookingId = POD.U_BookingNumber AND CAST(POD.U_PODStatusDetail as nvarchar(max)) LIKE '%Verified%'
+    INNER JOIN (SELECT U_BookingNumber, U_BookingDate, U_PODStatusDetail FROM [dbo].[@PCTP_POD] WITH(NOLOCK)) POD ON T0.U_BookingId = POD.U_BookingNumber AND CAST(POD.U_PODStatusDetail as nvarchar(max)) LIKE '%Verified%'
 
 -------->>SUMMARY_EXTRACT
 
