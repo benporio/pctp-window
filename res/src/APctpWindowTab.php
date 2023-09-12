@@ -183,7 +183,7 @@ abstract class APctpWindowTab extends ASerializableClass
             }
         }
         if (str_contains($filterClause, 'TF.')) {
-            $bookingIdScript .= " LEFT JOIN TP_FORMULA TF ON TF.U_BookingId = ";
+            $bookingIdScript .= " LEFT JOIN TP_EXTRACT TF ON TF.U_BookingId = ";
             if (in_array($this::class, [PodTab::class, SummaryTab::class])) {
                 $bookingIdScript .= " X.U_BookingNumber ";
             } else {
@@ -500,7 +500,7 @@ abstract class APctpWindowTab extends ASerializableClass
                     fn ($z) => $z->BookingId,
                     SAPAccessManager::getInstance()->getRows(
                         "   SELECT U_BookingId AS BookingId
-                        FROM TP_FORMULA
+                        FROM TP_EXTRACT
                         WHERE (U_DocNum LIKE '%[ ]$data->apDocNum%' OR U_Paid LIKE '%[ ]$data->apDocNum%')
                     "
                     )
