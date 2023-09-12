@@ -2835,22 +2835,14 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_DocNum') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            CAST((
-                                    SELECT DISTINCT
-                                SUBSTRING(
-                                        (
-                                            SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                FROM PCH1 line
-                                    LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                FOR XML PATH (''), TYPE
-                                        ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                            FROM OPCH header
-                                LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                            WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%'))
-                            as nvarchar(max))
+                            CAST(SUBSTRING((
+                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
+                            FROM PCH1 line WITH (NOLOCK)
+                                LEFT JOIN (SELECT DocNum, DocEntry, CANCELED, PaidSum, U_PVNo FROM OPCH WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
+                            WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
+                                or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
+                            FOR XML PATH (''), TYPE
+                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(max))
                         ELSE NULL
                     END
                 ELSE NULL
@@ -2859,22 +2851,14 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_Paid') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN 
-                            CAST((
-                                    SELECT DISTINCT
-                                SUBSTRING(
-                                        (
-                                            SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                FROM PCH1 line
-                                    LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                FOR XML PATH (''), TYPE
-                                        ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                            FROM OPCH header
-                                LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                            WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%'))
-                            as nvarchar(max))
+                            CAST(SUBSTRING((
+                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
+                            FROM PCH1 line WITH (NOLOCK)
+                                LEFT JOIN (SELECT DocNum, DocEntry, CANCELED, PaidSum, U_PVNo FROM OPCH WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
+                            WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
+                                or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
+                            FOR XML PATH (''), TYPE
+                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(max))
                         ELSE NULL
                     END
                 ELSE NULL
