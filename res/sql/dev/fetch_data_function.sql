@@ -2858,7 +2858,7 @@ BEGIN
             CASE
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_Paid') THEN
                     CASE
-                        WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' THEN 
+                        WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN 
                             CAST((
                                     SELECT DISTINCT
                                 SUBSTRING(
