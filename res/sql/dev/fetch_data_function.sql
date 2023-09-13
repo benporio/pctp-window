@@ -4265,22 +4265,14 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_ARDocNum') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' THEN 
-                        CAST((
-                            SELECT DISTINCT
-                            SUBSTRING(
-                                    (
-                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                            FROM INV1 line
-                                LEFT JOIN OINV header ON header.DocEntry = line.DocEntry
-                            WHERE line.ItemCode = POD.U_BookingNumber
-                                AND header.CANCELED = 'N'
-                            FOR XML PATH (''), TYPE
-                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                        FROM OINV header
-                            LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
+                        CAST(SUBSTRING((
+                                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
+                        FROM INV1 line WITH (NOLOCK)
+                            LEFT JOIN (SELECT DocEntry, DocNum, CANCELED FROM OINV WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
                         WHERE line.ItemCode = POD.U_BookingNumber
-                            AND header.CANCELED = 'N') as nvarchar(500)
-                        )
+                            AND header.CANCELED = 'N'
+                        FOR XML PATH (''), TYPE
+                                ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(500))
                     ELSE NULL
                 END
             ELSE NULL
@@ -4288,42 +4280,17 @@ BEGIN
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_DocNum') THEN
                 CASE
-                    WHEN @TabName = 'BILLING' THEN 
-                        CAST((
-                            SELECT DISTINCT
-                            SUBSTRING(
-                                    (
-                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                            FROM INV1 line
-                                LEFT JOIN OINV header ON header.DocEntry = line.DocEntry
-                            WHERE line.ItemCode = BILLING.U_BookingId
-                                AND header.CANCELED = 'N'
-                            FOR XML PATH (''), TYPE
-                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                        FROM OINV header
-                            LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
-                        WHERE line.ItemCode = BILLING.U_BookingId
-                            AND header.CANCELED = 'N') as nvarchar(500)
-                        )
+                    WHEN @TabName = 'BILLING' OR @TabName = 'PRICING' THEN 
+                        CAST(SUBSTRING((
+                                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
+                        FROM INV1 line WITH (NOLOCK)
+                            LEFT JOIN (SELECT DocEntry, DocNum, CANCELED FROM OINV WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
+                        WHERE line.ItemCode = POD.U_BookingNumber
+                            AND header.CANCELED = 'N'
+                        FOR XML PATH (''), TYPE
+                                ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(500))
                     WHEN @TabName = 'POD' THEN CAST(POD.U_DocNum as nvarchar(500))
                     WHEN @TabName = 'TP' THEN TF.U_DocNum
-                    WHEN @TabName = 'PRICING' THEN 
-                        CAST((
-                            SELECT DISTINCT
-                            SUBSTRING(
-                                    (
-                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                            FROM INV1 line
-                                LEFT JOIN OINV header ON header.DocEntry = line.DocEntry
-                            WHERE line.ItemCode = PRICING.U_BookingId
-                                AND header.CANCELED = 'N'
-                            FOR XML PATH (''), TYPE
-                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                        FROM OINV header
-                            LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
-                        WHERE line.ItemCode = PRICING.U_BookingId
-                            AND header.CANCELED = 'N') as nvarchar(500)
-                        )
                     ELSE NULL
                 END
             ELSE NULL
