@@ -130,7 +130,21 @@ const fieldEvent = (jElement, eventType, targetTabName = '', globalEvent = '') =
                                     } else {
                                         invalidValues = observee.invalidValues;
                                     }
+                                    let exempted = false;
                                     if (invalidValues.includes(String(value).trim())) {
+                                        if (!!observee.exemptions) {
+                                            const { allOtherFieldMatch } = observee.exemptions;
+                                            if (!!allOtherFieldMatch && allOtherFieldMatch.every(match => {
+                                                const fieldValue = String(p.getElementModelValue(activeTabName, row, match.field)).trim()
+                                                if (match.value.includes('@')) {
+                                                    return p.constants[match.value.replace('@', '')].includes(fieldValue)
+                                                } else {
+                                                    return fieldValue == String(match.value).trim()
+                                                }
+                                            })) exempted = true;
+                                        }
+                                    }
+                                    if (!exempted && invalidValues.includes(String(value).trim())) {
                                         p.log('invalid values detected', field, e[0].localName, jElement)
                                         p.log(`Field '${field}' should have a valid value`);
                                         if (observee.result !== undefined && observee.result.failed !== undefined && observee.result.failed.callback !== undefined) {

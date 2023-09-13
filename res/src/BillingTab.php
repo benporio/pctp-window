@@ -299,6 +299,14 @@ class BillingTab extends APctpWindowTab
                                 'fields' => ['DocNum'],
                                 'acceptedValuesRegex' => '',
                                 'invalidValues' => [null, '', 0],
+                                'exemptions' => [
+                                    'allOtherFieldMatch' => [
+                                        [
+                                            'field' => 'SAPClient',
+                                            'value' => '@SAPClientBillingLogicExemption'
+                                        ]
+                                    ]
+                                ],
                                 'result' => (object)[
                                     'failed' => (object)[
                                         'message' => "AR Invoice should be created first before tagging as Billed",

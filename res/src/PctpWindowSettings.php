@@ -115,6 +115,7 @@ class PctpWindowSettings extends ASerializableClass
                                         ISNULL(CAST(U_GroupLocation as nvarchar(max)), '') AS GroupProject 
                                     FROM OCRD  WITH (NOLOCK)
             ",
+            'SAPClientBillingLogicExemption' => 'SELECT Code FROM TMP_SAPClientBillingLogicExemption WITH (NOLOCK)'
         ];
         $this->dropDownOptions = [
             'deliveryStatusOptions' => SAPAccessManager::getInstance()->getRows($this->queries['deliveryStatusOptions']),
@@ -435,6 +436,7 @@ class PctpWindowSettings extends ASerializableClass
             'DateSeparator' => SAPAccessManager::getInstance()->getRows($this->queries['DateSeparator'])[0]->DateSep,
             'SAPPriceDecimal' => SAPAccessManager::getInstance()->getRows($this->queries['SAPPriceDecimal'])[0]->PriceDec,
             'CardCodes' => array_map(fn ($z) => $z->CardCode, SAPAccessManager::getInstance()->getRows($this->queries['CardCodes'])),
+            'SAPClientBillingLogicExemption' => array_map(fn ($z) => $z->Code, SAPAccessManager::getInstance()->getRows($this->queries['SAPClientBillingLogicExemption'])),
         ];
         $this->apiData = [
             'CardCodeNames' => SAPAccessManager::getInstance()->getRows($this->queries['CardCodeNames']),
