@@ -1,0 +1,65 @@
+-------->>CREATING TARGETS
+
+DROP TABLE IF EXISTS TMP_TARGET_20230913
+SELECT
+    POD.U_BookingNumber,
+    CAST(SUBSTRING((
+                SELECT CONCAT(', ', header.DocNum)  AS [text()]
+    FROM INV1 line WITH (NOLOCK)
+        LEFT JOIN (SELECT DocEntry, DocNum, CANCELED FROM OINV WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
+    WHERE line.ItemCode = POD.U_BookingNumber
+        AND header.CANCELED = 'N'
+    FOR XML PATH (''), TYPE
+            ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(500)) AS U_DocNum,
+    CAST((
+        SELECT TOP 1
+        header.DocNum
+    FROM ORDR header
+        LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
+    WHERE line.ItemCode = POD.U_BookingNumber
+        AND header.CANCELED = 'N'
+    ) AS nvarchar(500)) AS U_PODSONum
+INTO TMP_TARGET_20230913
+FROM [dbo].[@PCTP_POD] POD WITH (NOLOCK)
+
+-------->>SUMMARY_EXTRACT
+
+UPDATE SUMMARY_EXTRACT
+SET U_ARDocNum = TMP.U_DocNum,
+    U_PODSONum = TMP.U_PODSONum
+FROM TMP_TARGET_20230913 TMP
+WHERE TMP.U_BookingNumber = SUMMARY_EXTRACT.U_BookingNumber;
+
+-------->>POD_EXTRACT
+
+UPDATE POD_EXTRACT
+SET U_PODSONum = TMP.U_PODSONum
+FROM TMP_TARGET_20230913 TMP
+WHERE TMP.U_BookingNumber = POD_EXTRACT.U_BookingNumber;
+
+-------->>BILLING_EXTRACT
+
+UPDATE BILLING_EXTRACT
+SET U_DocNum = TMP.U_DocNum,
+    U_PODSONum = TMP.U_PODSONum
+FROM TMP_TARGET_20230913 TMP
+WHERE TMP.U_BookingNumber = BILLING_EXTRACT.U_BookingId;
+
+-------->>TP_EXTRACT
+
+UPDATE TP_EXTRACT
+SET U_PODSONum = TMP.U_PODSONum
+FROM TMP_TARGET_20230913 TMP
+WHERE TMP.U_BookingNumber = TP_EXTRACT.U_BookingId;
+
+-------->>PRICING_EXTRACT
+
+UPDATE PRICING_EXTRACT
+SET U_DocNum = TMP.U_DocNum,
+    U_PODSONum = TMP.U_PODSONum
+FROM TMP_TARGET_20230913 TMP
+WHERE TMP.U_BookingNumber = PRICING_EXTRACT.U_BookingId;
+
+-------->>DELETING TMP_TARGET_20230913
+
+DROP TABLE IF EXISTS TMP_TARGET_20230913
