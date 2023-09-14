@@ -220,6 +220,471 @@ BEGIN
     RTRIM(LTRIM(value)) AS item
     FROM STRING_SPLIT(@AccessColumns, ',');
 
+    --VARIABLES
+    DECLARE @ClientSubOverdue TABLE(id nvarchar(100), value int);
+    INSERT INTO @ClientSubOverdue
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        dbo.computeClientSubOverdue(
+            POD.U_DeliveryDateDTR,
+            POD.U_ClientReceivedDate,
+            ISNULL(POD.U_WaivedDays, 0),
+            CAST(ISNULL(client.U_DCD,0) as int)
+        ) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    LEFT JOIN (SELECT CardCode, U_DCD FROM OCRD WITH(NOLOCK)) client ON POD.U_SAPClient = client.CardCode
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @ClientPenaltyCalc TABLE(id nvarchar(100), value float);
+    INSERT INTO @ClientPenaltyCalc
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        dbo.computeClientPenaltyCalc(
+            (SELECT value FROM @ClientSubOverdue WHERE id = POD.U_BookingNumber)
+        ) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @PODSubmitDeadline TABLE(id nvarchar(100), value date);
+    INSERT INTO @PODSubmitDeadline
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        dbo.computePODSubmitDeadline(
+            POD.U_DeliveryDateDTR,
+            ISNULL(client.U_CDC,0)
+        ) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    LEFT JOIN (SELECT CardCode, U_CDC FROM OCRD WITH(NOLOCK)) client ON POD.U_SAPClient = client.CardCode
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @OverdueDays TABLE(id nvarchar(100), value int);
+    INSERT INTO @OverdueDays
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        dbo.computeOverdueDays(
+            POD.U_ActualHCRecDate,
+            (SELECT value FROM @PODSubmitDeadline WHERE id = POD.U_BookingNumber),
+            ISNULL(POD.U_HolidayOrWeekend, 0)
+        ) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @PODStatusPayment TABLE(id nvarchar(100), value nvarchar(6));
+    INSERT INTO @PODStatusPayment
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        dbo.computePODStatusPayment(
+            (SELECT value FROM @OverdueDays WHERE id = POD.U_BookingNumber)
+        ) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @InteluckPenaltyCalc TABLE(id nvarchar(100), value int);
+    INSERT INTO @InteluckPenaltyCalc
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        dbo.computeInteluckPenaltyCalc(
+            (SELECT value FROM @PODStatusPayment WHERE id = POD.U_BookingNumber),
+            (SELECT value FROM @OverdueDays WHERE id = POD.U_BookingNumber)
+        ) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @GrossClientRatesTax TABLE(id nvarchar(100), value int);
+    INSERT INTO @GrossClientRatesTax
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        CASE
+            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN PRICING.U_GrossClientRates
+            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (PRICING.U_GrossClientRates / 1.12)
+        END as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    LEFT JOIN (
+        SELECT 
+            U_BookingId, U_GrossClientRates
+        FROM [dbo].[@PCTP_PRICING] WITH(NOLOCK)
+    ) PRICING ON PRICING.U_BookingId = POD.U_BookingNumber
+    LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) client ON POD.U_SAPClient = client.CardCode
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @GrossTruckerRatesTax TABLE(id nvarchar(100), value int);
+    INSERT INTO @GrossTruckerRatesTax
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        CASE
+            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN PRICING.U_GrossTruckerRates
+            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (PRICING.U_GrossTruckerRates / 1.12)
+        END as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    LEFT JOIN (
+        SELECT 
+            U_BookingId, U_GrossTruckerRates
+        FROM [dbo].[@PCTP_PRICING] WITH(NOLOCK)
+    ) PRICING ON PRICING.U_BookingId = POD.U_BookingNumber
+    LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) trucker ON POD.U_SAPTrucker = trucker.CardCode
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @TotalInitialClient TABLE(id nvarchar(100), value int);
+    INSERT INTO @TotalInitialClient
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        CASE
+            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN 
+                (ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0))
+            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN 
+                ((ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0)) / 1.12)
+        END 
+        + (SELECT value FROM @GrossClientRatesTax WHERE id = POD.U_BookingNumber)
+        + CASE
+            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_Demurrage, 0)
+            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_Demurrage, 0) / 1.12)
+        END as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    LEFT JOIN (
+        SELECT 
+            U_BookingId, 
+            U_AddtlDrop, U_BoomTruck, U_Manpower, U_Backload,
+            U_GrossClientRates, U_Demurrage
+        FROM [dbo].[@PCTP_PRICING] WITH(NOLOCK)
+    ) PRICING ON PRICING.U_BookingId = POD.U_BookingNumber
+    LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) client ON POD.U_SAPClient = client.CardCode
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @TotalInitialTruckers TABLE(id nvarchar(100), value int);
+    INSERT INTO @TotalInitialTruckers
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        (SELECT value FROM @GrossTruckerRatesTax WHERE id = POD.U_BookingNumber) 
+        + CASE
+            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_Demurrage2, 0)
+            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_Demurrage2, 0) / 1.12)
+        END + CASE
+            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (ISNULL(PRICING.U_AddtlDrop2, 0) + ISNULL(PRICING.U_BoomTruck2, 0) + ISNULL(PRICING.U_Manpower2, 0) + ISNULL(PRICING.U_Backload2, 0))
+            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((ISNULL(PRICING.U_AddtlDrop2, 0) + ISNULL(PRICING.U_BoomTruck2, 0) + ISNULL(PRICING.U_Manpower2, 0) + ISNULL(PRICING.U_Backload2, 0)) / 1.12)
+        END as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    LEFT JOIN (
+        SELECT 
+            U_BookingId, 
+            U_GrossTruckerRates, U_Demurrage2,
+            U_AddtlDrop2, U_BoomTruck2, U_Manpower2, U_Backload2
+        FROM [dbo].[@PCTP_PRICING] WITH(NOLOCK)
+    ) PRICING ON PRICING.U_BookingId = POD.U_BookingNumber
+    LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) trucker ON POD.U_SAPTrucker = trucker.CardCode
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @LostPenaltyCalc TABLE(id nvarchar(100), value float);
+    INSERT INTO @LostPenaltyCalc
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        dbo.computeLostPenaltyCalc(
+            (SELECT value FROM @PODStatusPayment WHERE id = POD.U_BookingNumber),
+            POD.U_InitialHCRecDate,
+            POD.U_DeliveryDateDTR,
+            (SELECT value FROM @TotalInitialTruckers WHERE id = POD.U_BookingNumber)
+        ) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    LEFT JOIN (
+        SELECT 
+            U_BookingId, 
+            U_GrossTruckerRates, 
+            U_Demurrage2, 
+            U_AddtlDrop2, U_BoomTruck2, U_Manpower2, U_Backload2
+        FROM [dbo].[@PCTP_PRICING] WITH(NOLOCK)
+    ) PRICING ON PRICING.U_BookingId = POD.U_BookingNumber
+    LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) trucker ON POD.U_SAPTrucker = trucker.CardCode
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @TotalSubPenalties TABLE(id nvarchar(100), value float);
+    INSERT INTO @TotalSubPenalties
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        dbo.computeTotalSubPenalties(
+            (SELECT value FROM @ClientPenaltyCalc WHERE id = POD.U_BookingNumber),
+            (SELECT value FROM @InteluckPenaltyCalc WHERE id = POD.U_BookingNumber),
+            (SELECT value FROM @LostPenaltyCalc WHERE id = POD.U_BookingNumber),
+            ISNULL(POD.U_PenaltiesManual,0)
+        ) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @TotalPenaltyWaived TABLE(id nvarchar(100), value float);
+    INSERT INTO @TotalPenaltyWaived
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        dbo.computeTotalPenaltyWaived(
+            (SELECT value FROM @TotalSubPenalties WHERE id = POD.U_BookingNumber),
+            ISNULL(POD.U_PercPenaltyCharge,0)
+        ) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @TotalAR TABLE(id nvarchar(100), value float);
+    INSERT INTO @TotalAR
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        ISNULL((
+            SELECT
+                SUM(L.PriceAfVAT)
+            FROM OINV H WITH(NOLOCK)
+            LEFT JOIN (SELECT DocEntry, ItemCode, PriceAfVAT FROM INV1 WITH(NOLOCK)) L ON H.DocEntry = L.DocEntry
+            WHERE H.CANCELED = 'N' AND L.ItemCode = POD.U_BookingNumber
+        ), 0) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @TotalRecClients TABLE(id nvarchar(100), value float);
+    INSERT INTO @TotalRecClients
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        (
+            CASE
+                WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossClientRates, 0)
+                WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossClientRates, 0) / 1.12)
+            END
+        ) --BILLING.U_GrossInitialRate
+        + ISNULL(PRICING.U_Demurrage, 0)
+        + (ISNULL(PRICING.U_AddtlDrop,0) + 
+        ISNULL(PRICING.U_BoomTruck,0) + 
+        ISNULL(PRICING.U_Manpower,0) + 
+        ISNULL(PRICING.U_Backload,0))
+        + ISNULL(BILLING.U_ActualBilledRate, 0)
+        + ISNULL(BILLING.U_RateAdjustments, 0)
+        + ISNULL(BILLING.U_ActualDemurrage, 0)
+        + ISNULL(BILLING.U_ActualAddCharges, 0) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    LEFT JOIN (
+        SELECT 
+            U_BookingId, 
+            U_GrossClientRates, 
+            U_Demurrage, U_AddtlDrop, U_BoomTruck, U_Manpower, U_Backload
+        FROM [dbo].[@PCTP_PRICING] WITH(NOLOCK)
+    ) PRICING ON PRICING.U_BookingId = POD.U_BookingNumber
+    LEFT JOIN (
+        SELECT 
+            U_BookingId, 
+            U_ActualBilledRate, U_RateAdjustments, U_ActualDemurrage, U_ActualAddCharges
+        FROM [dbo].[@PCTP_BILLING] WITH(NOLOCK)
+    ) BILLING ON BILLING.U_BookingId = POD.U_BookingNumber
+    LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) client ON POD.U_SAPClient = client.CardCode
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @TOTALDEDUCTIONS TABLE(id nvarchar(100), value float);
+    INSERT INTO @TOTALDEDUCTIONS
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        ISNULL(TP.U_CAandDP,0) + ISNULL(TP.U_Interest,0) + ISNULL(TP.U_OtherDeductions,0) 
+        + (ABS(
+            ABS(ISNULL((SELECT value FROM @TotalSubPenalties WHERE id = POD.U_BookingNumber),0)) 
+            - ABS(ISNULL((SELECT value FROM @TotalPenaltyWaived WHERE id = POD.U_BookingNumber),0))
+        )) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    LEFT JOIN (
+        SELECT 
+            U_BookingId, 
+            U_CAandDP, U_Interest, U_OtherDeductions
+        FROM [dbo].[@PCTP_TP] WITH(NOLOCK)
+    ) TP ON TP.U_BookingId = POD.U_BookingNumber
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @Paid TABLE(id nvarchar(100), value nvarchar(100));
+    INSERT INTO @Paid
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        CAST(SUBSTRING((
+                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
+        FROM PCH1 line WITH (NOLOCK)
+            LEFT JOIN (SELECT DocNum, DocEntry, CANCELED, PaidSum, U_PVNo FROM OPCH WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
+        WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = POD.U_BookingNumber
+            or REPLACE(REPLACE(RTRIM(LTRIM(TP.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
+        FOR XML PATH (''), TYPE
+                ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(max)) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    LEFT JOIN (
+        SELECT 
+            U_BookingId, U_PVNo
+        FROM [dbo].[@PCTP_TP] WITH(NOLOCK)
+    ) TP ON TP.U_BookingId = POD.U_BookingNumber
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @DocNum TABLE(id nvarchar(100), value nvarchar(100));
+    INSERT INTO @DocNum
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        CAST(SUBSTRING((
+                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
+        FROM PCH1 line WITH (NOLOCK)
+            LEFT JOIN (SELECT DocNum, DocEntry, CANCELED, PaidSum, U_PVNo FROM OPCH WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
+        WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = POD.U_BookingNumber
+            or REPLACE(REPLACE(RTRIM(LTRIM(TP.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
+        FOR XML PATH (''), TYPE
+                ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(max)) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    LEFT JOIN (
+        SELECT 
+            U_BookingId, U_PVNo
+        FROM [dbo].[@PCTP_TP] WITH(NOLOCK)
+    ) TP ON TP.U_BookingId = POD.U_BookingNumber
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @TotalPenalty TABLE(id nvarchar(100), value float);
+    INSERT INTO @TotalPenalty
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        ABS((SELECT value FROM @TotalSubPenalties WHERE id = POD.U_BookingNumber)) 
+        - (SELECT value FROM @TotalPenaltyWaived WHERE id = POD.U_BookingNumber) as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    -- LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) client ON POD.U_SAPClient = client.CardCode
+    -- LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) trucker ON POD.U_SAPTrucker = trucker.CardCode
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @1stPV TABLE(id nvarchar(100), value float);
+    INSERT INTO @1stPV
+    SELECT DISTINCT 
+        POD.U_BookingNumber as id,
+        ISNULL((
+          ISNULL(TRY_PARSE(ratessub.U_Amount AS FLOAT), 0)
+          + ISNULL(TP.U_RateAdjustments, 0) 
+          + ISNULL(TRY_PARSE(ratessub.U_AddlAmount AS FLOAT), 0)
+        ) 
+        - 
+        (SELECT value FROM @TotalPenalty WHERE id = POD.U_BookingNumber), 0) as value 
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK) 
+    INNER JOIN (
+        SELECT
+            U_BookingId,
+            U_RateAdjustments,
+            U_PVNo
+        FROM [dbo].[@PCTP_TP] WITH(NOLOCK)
+    ) TP ON TP.U_BookingId = POD.U_BookingNumber
+    LEFT JOIN [@FirstratesTP] ratessub ON ratessub.U_BN = TP.U_BookingId AND ratessub.U_PVNo = SUBSTRING(TP.U_PVNo, 1, 9)
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @2ndPV TABLE(id nvarchar(100), value float);
+    INSERT INTO @2ndPV
+    SELECT DISTINCT 
+        POD.U_BookingNumber as id,
+        ISNULL((
+          CASE 
+            WHEN T5.U_Rates LIKE '%U_GrossTruckerRates%' THEN 
+              CASE 
+                WHEN ISNULL(trucker.VatStatus, 'Y') = 'Y' THEN PRICING.U_GrossTruckerRates 
+                WHEN ISNULL(trucker.VatStatus, 'Y') = 'N' THEN (PRICING.U_GrossTruckerRates / 1.12) 
+              END 
+            ELSE 0.00 
+          END 
+          + 
+          CASE 
+            WHEN T5.U_Rates LIKE '%U_ActualRates%' THEN ISNULL(NULLIF(CAST(TP.U_ActualRates AS FLOAT), ''), 0) 
+            ELSE 0.00 
+          END 
+          + 
+          CASE 
+            WHEN T5.U_Rates LIKE '%U_RateAdjustments%' THEN ISNULL(NULLIF(CAST(TP.U_RateAdjustments AS FLOAT), ''), 0) 
+            ELSE 0.00 
+          END 
+          + 
+          CASE 
+            WHEN T5.U_Rates LIKE '%U_DemurrageN%' THEN 
+              CASE 
+                WHEN ISNULL(trucker.VatStatus, 'Y') = 'Y' THEN PRICING.U_Demurrage2 
+                WHEN ISNULL(trucker.VatStatus, 'Y') = 'N' THEN (PRICING.U_Demurrage2 / 1.12) 
+              END 
+            ELSE 0.00 
+          END 
+          + 
+          CASE 
+            WHEN T5.U_Rates LIKE '%U_totalAddtlCharges2%' THEN ISNULL(NULLIF(CAST(TP.U_ActualCharges AS FLOAT), ''), 0) 
+            ELSE 0.00 
+          END 
+          + 
+          CASE 
+            WHEN T5.U_Rates LIKE '%U_ActualDemurrage%' THEN ISNULL(NULLIF(CAST(TP.U_ActualDemurrage AS FLOAT), ''), 0) 
+            ELSE 0.00 
+          END 
+          + 
+          CASE 
+            WHEN T5.U_Rates LIKE '%U_ActualCharges%' THEN ISNULL(NULLIF(CAST(TP.U_ActualCharges AS FLOAT), ''), 0) 
+            ELSE 0.00 
+          END 
+          + 
+          CASE 
+            WHEN T5.U_Rates LIKE '%U_BoomTruck2%' THEN ISNULL(NULLIF(CAST(TP.U_BoomTruck2 AS FLOAT), ''), 0) 
+            ELSE 0.00 
+          END 
+          + 
+          CASE 
+            WHEN T5.U_Rates LIKE '%U_OtherCharges%' THEN ISNULL(NULLIF(CAST(TP.U_OtherCharges AS FLOAT), ''), 0) 
+            ELSE 0.00 
+          END
+        ) 
+        - 
+        ISNULL(TP.U_OtherDeductions, 0) 
+        + 
+        ABS((SELECT value FROM @TotalPenaltyWaived WHERE id = POD.U_BookingNumber)), 0) as value 
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK) 
+    INNER JOIN (
+        SELECT
+            U_BookingId, U_PVNo,
+            U_ActualRates, U_RateAdjustments, 
+            U_ActualCharges, U_ActualDemurrage, U_BoomTruck2, U_OtherCharges, U_OtherDeductions
+        FROM [dbo].[@PCTP_TP] WITH(NOLOCK)
+    ) TP ON TP.U_BookingId = POD.U_BookingNumber 
+    INNER JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) trucker ON POD.U_SAPTrucker = trucker.CardCode 
+    INNER JOIN (
+        SELECT
+            U_BookingId,
+            U_GrossTruckerRates, U_Demurrage2
+        FROM [dbo].[@PCTP_PRICING] WITH(NOLOCK)
+    ) PRICING ON TP.U_BookingId = PRICING.U_BookingId
+    INNER JOIN [@RATESPERPV] T5 ON T5.Code = SUBSTRING(TP.U_PVNo, 11, 19)
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @TotalAP TABLE(id nvarchar(100), value float);
+    INSERT INTO @TotalAP
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        CASE
+            WHEN (
+                (SELECT value FROM @DocNum WHERE id = POD.U_BookingNumber) LIKE '%[0-9]%'
+                OR (SELECT value FROM @Paid WHERE id = POD.U_BookingNumber) LIKE '%[0-9]%'
+            ) THEN
+                -- Either 1 Paid only or 1 Unpaid only, use @1stPV, otherwise @2ndPV
+                CASE
+                    WHEN (
+                        (
+                            CHARINDEX(',', TP.U_PVNo) = 0
+                            OR
+                            (
+                                (SELECT value FROM @DocNum WHERE id = POD.U_BookingNumber) LIKE '%[0-9]%'
+                                AND CHARINDEX(',', (SELECT value FROM @DocNum WHERE id = POD.U_BookingNumber)) = 0
+                                AND (SELECT value FROM @Paid WHERE id = POD.U_BookingNumber) IS NULL
+                            )
+                            OR 
+                            (
+                                (SELECT value FROM @Paid WHERE id = POD.U_BookingNumber) LIKE '%[0-9]%'
+                                AND CHARINDEX(',', (SELECT value FROM @Paid WHERE id = POD.U_BookingNumber)) = 0
+                                AND (SELECT value FROM @DocNum WHERE id = POD.U_BookingNumber) IS NULL
+                            )
+                        )
+                    ) THEN 
+                        (SELECT value FROM @1stPV WHERE id = POD.U_BookingNumber)
+                    ELSE 
+                        (SELECT value FROM @2ndPV WHERE id = POD.U_BookingNumber) + (SELECT value FROM @1stPV WHERE id = POD.U_BookingNumber)
+                END
+            ELSE 0.00
+        END as value
+    FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
+    LEFT JOIN (
+        SELECT
+            U_BookingId,
+            U_GrossTruckerRates, U_PVNo
+        FROM [dbo].[@PCTP_TP] WITH(NOLOCK)
+    ) TP ON TP.U_BookingId = POD.U_BookingNumber
+    -- LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) client ON POD.U_SAPClient = client.CardCode
+    -- LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) trucker ON POD.U_SAPTrucker = trucker.CardCode
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
     WITH LOCAL_TP_FORMULA(
         U_BookingNumber, 
         DisableTableRow, 
@@ -277,1277 +742,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalAP') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            CASE
-
-
-                                WHEN EXISTS(
-                                    SELECT 1
-                            FROM OPCH header
-                                LEFT JOIN PCH1 line ON header.DocEntry = line.DocEntry
-                            WHERE header.CANCELED = 'N' AND REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%'
-                                ) THEN 
-                                    CASE 
-                                        --TOTAL AP 2 PAID  ------------
-                                        WHEN CHARINDEX(',', CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                    (
-                                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                            )) >  0 AND
-                                CAST((
-                                                SELECT DISTINCT
-                                    SUBSTRING(
-                                                    (
-                                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                            ) IS NULL
-                                        THEN 
-                                        ISNULL((
-                                            SELECT DISTINCT
-
-                                (
-                                                CASE WHEN T5.U_Rates LIKE '%U_GrossTruckerRates%' THEN 
-                                                    CASE
-                                                        WHEN ISNULL( truckersub.VatStatus,'Y') = 'Y' THEN pricingsub.U_GrossTruckerRates
-                                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'N' THEN (pricingsub.U_GrossTruckerRates / 1.12)
-                                                    END 
-                                                ELSE 0.00 
-                                                END
-                                                +
-                                                CASE WHEN T5.U_Rates LIKE '%U_ActualRates%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualRates AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +
-                                                CASE WHEN T5.U_Rates LIKE '%U_RateAdjustments%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_RateAdjustments AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +
-                                                CASE WHEN T5.U_Rates LIKE '%U_DemurrageN%' THEN 
-                                                    CASE
-                                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'Y' THEN pricingsub.U_Demurrage2
-                                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'N' THEN (pricingsub.U_Demurrage2 / 1.12) 
-                                                    END
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_totalAddtlCharges2%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualCharges AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_ActualDemurrage%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualDemurrage AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_ActualCharges%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualCharges AS FLOAT),''),0)
-
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_BoomTruck2%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_BoomTruck2 AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_OtherCharges%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_OtherCharges AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-
-                                            )
-                                            -
-                                            ISNULL(tpsub.U_OtherDeductions,0) 
-
-                                            +
-
-                                                abs(dbo.computeTotalPenaltyWaived(
-                                                    dbo.computeTotalSubPenalties(
-                                                        dbo.computeClientPenaltyCalc(
-                                                            dbo.computeClientSubOverdue(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                podsub.U_ClientReceivedDate,
-                                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                            )
-                                                        ),
-                                                        dbo.computeInteluckPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeLostPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            podsub.U_InitialHCRecDate,
-                                                            podsub.U_DeliveryDateDTR,
-                                                            pricingsub.U_TotalInitialTruckers
-                                                        ),
-                                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                                    ),
-                                                    ISNULL(podsub.U_PercPenaltyCharge,0))
-                                                ) AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                --INNER JOIN [@RATESPERPV] ratessub ON ratessub.Code = tpsub.U_PVNo
-                                INNER JOIN [@RATESPERPV] T5 ON T5.Code = SUBSTRING(tpsub.U_PVNo, 11, 19)
-                            WHERE tpsub.U_BookingId =  T0.U_BookingId
-
-
-                                            ),0)+ ISNULL((
-
-                                            SELECT DISTINCT
-
-                                (
-
-                                                ISNULL(TRY_PARSE(ratessub.U_Amount AS FLOAT),0)+
-                                            --ISNULL(tpsub.U_ActualRates,0) +
-
-                                                ISNULL(tpsub.U_RateAdjustments,0) +
-
-
-
-                                                ISNULL(TRY_PARSE(ratessub.U_AddlAmount AS FLOAT),0)  
-                                            --+
-
-                                            --ISNULL(tpsub.U_ActualDemurrage,0) +
-                                            --ISNULL(tpsub.U_ActualCharges,0)+
-                                            --ISNULL(NULLIF(tpsub.U_BoomTruck2,''),0) +
-                                            --ISNULL(tpsub.U_OtherCharges,0) 
-
-                                            )
-
-                                            -
-
-                                            (ABS(dbo.computeTotalSubPenalties(
-                                                    dbo.computeClientPenaltyCalc(
-                                                        dbo.computeClientSubOverdue(
-                                                            podsub.U_DeliveryDateDTR,
-                                                            podsub.U_ClientReceivedDate,
-                                                            ISNULL(podsub.U_WaivedDays, 0),
-                                                            CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                        )
-                                                    ),
-                                                    dbo.computeInteluckPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeOverdueDays(
-                                                            podsub.U_ActualHCRecDate,
-                                                            dbo.computePODSubmitDeadline(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                ISNULL(clientsub.U_CDC,0)
-                                                            ),
-                                                            ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                        )
-                                                    ),
-                                                    dbo.computeLostPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        podsub.U_InitialHCRecDate,
-                                                        podsub.U_DeliveryDateDTR,
-                                                        pricingsub.U_TotalInitialTruckers
-                                                    ),
-                                                    ISNULL(podsub.U_PenaltiesManual,0)
-                                                )) -
-
-                                                dbo.computeTotalPenaltyWaived(
-                                                    dbo.computeTotalSubPenalties(
-                                                        dbo.computeClientPenaltyCalc(
-                                                            dbo.computeClientSubOverdue(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                podsub.U_ClientReceivedDate,
-                                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                            )
-                                                        ),
-                                                        dbo.computeInteluckPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeLostPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            podsub.U_InitialHCRecDate,
-                                                            podsub.U_DeliveryDateDTR,
-                                                            pricingsub.U_TotalInitialTruckers
-                                                        ),
-                                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                                    ),
-                                                    ISNULL(podsub.U_PercPenaltyCharge,0)))
-
-
-
-                                                AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                LEFT JOIN [@FirstratesTP] ratessub ON ratessub.U_BN = tpsub.U_BookingId AND ratessub.U_PVNo = SUBSTRING(tpsub.U_PVNo, 1, 9)
-
-
-                            WHERE tpsub.U_BookingId = T0.U_BookingId
-
-                                            )
-
-                                            ,0)    
-                                        --TOTAL AP 1 UNPAID 1 PAID  ------------
-                                        WHEN CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                (
-                                                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                        ) IS NOT NULL AND
-                                CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                (
-                                                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                        ) IS NOT NULL
-                                        THEN 
-
-                                    ISNULL((
-                            SELECT DISTINCT
-
-                                (
-                            CASE WHEN T5.U_Rates LIKE '%U_GrossTruckerRates%' THEN 
-                                    CASE
-                                        WHEN ISNULL( truckersub.VatStatus,'Y') = 'Y' THEN pricingsub.U_GrossTruckerRates
-                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'N' THEN (pricingsub.U_GrossTruckerRates / 1.12)
-                                    END 
-                                ELSE 0.00 
-                                END
-                                +
-                                CASE WHEN T5.U_Rates LIKE '%U_ActualRates%' THEN 
-                                    ISNULL(NULLIF(CAST(tpsub.U_ActualRates AS FLOAT),''),0)
-                                ELSE 0.00
-                                END 
-                                +
-                                CASE WHEN T5.U_Rates LIKE '%U_RateAdjustments%' THEN 
-                                    ISNULL(NULLIF(CAST(tpsub.U_RateAdjustments AS FLOAT),''),0)
-                                ELSE 0.00
-                                END 
-                                +
-                                CASE WHEN T5.U_Rates LIKE '%U_DemurrageN%' THEN 
-                                    CASE
-                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'Y' THEN pricingsub.U_Demurrage2
-                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'N' THEN (pricingsub.U_Demurrage2 / 1.12) 
-                                    END
-                                ELSE 0.00
-                                END 
-                                +  
-                                CASE WHEN T5.U_Rates LIKE '%U_totalAddtlCharges2%' THEN 
-                                    ISNULL(NULLIF(CAST(tpsub.U_ActualCharges AS FLOAT),''),0)
-                                ELSE 0.00
-                                END 
-                                +  
-                                CASE WHEN T5.U_Rates LIKE '%U_ActualDemurrage%' THEN 
-                                    ISNULL(NULLIF(CAST(tpsub.U_ActualDemurrage AS FLOAT),''),0)
-                                ELSE 0.00
-                                END 
-                                +  
-                                CASE WHEN T5.U_Rates LIKE '%U_ActualCharges%' THEN 
-                                    ISNULL(NULLIF(CAST(tpsub.U_ActualCharges AS FLOAT),''),0)
-
-                                ELSE 0.00
-                                END 
-                                +  
-                                CASE WHEN T5.U_Rates LIKE '%U_BoomTruck2%' THEN 
-                                    ISNULL(NULLIF(CAST(tpsub.U_BoomTruck2 AS FLOAT),''),0)
-                                ELSE 0.00
-                                END 
-                                +  
-                                CASE WHEN T5.U_Rates LIKE '%U_OtherCharges%' THEN 
-                                    ISNULL(NULLIF(CAST(tpsub.U_OtherCharges AS FLOAT),''),0)
-                                ELSE 0.00
-                                END 
-
-                            )
-                            -
-                            ISNULL(tpsub.U_OtherDeductions,0) 
-
-                            +
-
-                                abs(dbo.computeTotalPenaltyWaived(
-                                    dbo.computeTotalSubPenalties(
-                                        dbo.computeClientPenaltyCalc(
-                                            dbo.computeClientSubOverdue(
-                                                podsub.U_DeliveryDateDTR,
-                                                podsub.U_ClientReceivedDate,
-                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                            )
-                                        ),
-                                        dbo.computeInteluckPenaltyCalc(
-                                            dbo.computePODStatusPayment(
-                                                dbo.computeOverdueDays(
-                                                    podsub.U_ActualHCRecDate,
-                                                    dbo.computePODSubmitDeadline(
-                                                        podsub.U_DeliveryDateDTR,
-                                                        ISNULL(clientsub.U_CDC,0)
-                                                    ),
-                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                )
-                                            ),
-                                            dbo.computeOverdueDays(
-                                                podsub.U_ActualHCRecDate,
-                                                dbo.computePODSubmitDeadline(
-                                                    podsub.U_DeliveryDateDTR,
-                                                    ISNULL(clientsub.U_CDC,0)
-                                                ),
-                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                            )
-                                        ),
-                                        dbo.computeLostPenaltyCalc(
-                                            dbo.computePODStatusPayment(
-                                                dbo.computeOverdueDays(
-                                                    podsub.U_ActualHCRecDate,
-                                                    dbo.computePODSubmitDeadline(
-                                                        podsub.U_DeliveryDateDTR,
-                                                        ISNULL(clientsub.U_CDC,0)
-                                                    ),
-                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                )
-                                            ),
-                                            podsub.U_InitialHCRecDate,
-                                            podsub.U_DeliveryDateDTR,
-                                            pricingsub.U_TotalInitialTruckers
-                                        ),
-                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                    ),
-                                    ISNULL(podsub.U_PercPenaltyCharge,0))
-                                ) AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                --INNER JOIN [@RATESPERPV] ratessub ON ratessub.Code = tpsub.U_PVNo
-                                INNER JOIN [@RATESPERPV] T5 ON T5.Code = SUBSTRING(tpsub.U_PVNo, 11, 19)
-                            WHERE tpsub.U_BookingId =  T0.U_BookingId
-
-
-                            ),0)+ ISNULL((
-
-                            SELECT DISTINCT
-
-                                (
-
-                                ISNULL(TRY_PARSE(ratessub.U_Amount AS FLOAT),0)+
-                            --ISNULL(tpsub.U_ActualRates,0) +
-
-                            ISNULL(tpsub.U_RateAdjustments,0) +
-
-
-
-                                ISNULL(TRY_PARSE(ratessub.U_AddlAmount AS FLOAT),0)  
-                            --+
-
-                            --ISNULL(tpsub.U_ActualDemurrage,0) +
-                            --ISNULL(tpsub.U_ActualCharges,0)+
-                            --ISNULL(NULLIF(tpsub.U_BoomTruck2,''),0) +
-                            --ISNULL(tpsub.U_OtherCharges,0) 
-
-                            )
-
-                            -
-
-                            (ABS(dbo.computeTotalSubPenalties(
-                                    dbo.computeClientPenaltyCalc(
-                                        dbo.computeClientSubOverdue(
-                                            podsub.U_DeliveryDateDTR,
-                                            podsub.U_ClientReceivedDate,
-                                            ISNULL(podsub.U_WaivedDays, 0),
-                                            CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                        )
-                                    ),
-                                    dbo.computeInteluckPenaltyCalc(
-                                        dbo.computePODStatusPayment(
-                                            dbo.computeOverdueDays(
-                                                podsub.U_ActualHCRecDate,
-                                                dbo.computePODSubmitDeadline(
-                                                    podsub.U_DeliveryDateDTR,
-                                                    ISNULL(clientsub.U_CDC,0)
-                                                ),
-                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                            )
-                                        ),
-                                        dbo.computeOverdueDays(
-                                            podsub.U_ActualHCRecDate,
-                                            dbo.computePODSubmitDeadline(
-                                                podsub.U_DeliveryDateDTR,
-                                                ISNULL(clientsub.U_CDC,0)
-                                            ),
-                                            ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                        )
-                                    ),
-                                    dbo.computeLostPenaltyCalc(
-                                        dbo.computePODStatusPayment(
-                                            dbo.computeOverdueDays(
-                                                podsub.U_ActualHCRecDate,
-                                                dbo.computePODSubmitDeadline(
-                                                    podsub.U_DeliveryDateDTR,
-                                                    ISNULL(clientsub.U_CDC,0)
-                                                ),
-                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                            )
-                                        ),
-                                        podsub.U_InitialHCRecDate,
-                                        podsub.U_DeliveryDateDTR,
-                                        pricingsub.U_TotalInitialTruckers
-                                    ),
-                                    ISNULL(podsub.U_PenaltiesManual,0)
-                                )) -
-
-                                dbo.computeTotalPenaltyWaived(
-                                    dbo.computeTotalSubPenalties(
-                                        dbo.computeClientPenaltyCalc(
-                                            dbo.computeClientSubOverdue(
-                                                podsub.U_DeliveryDateDTR,
-                                                podsub.U_ClientReceivedDate,
-                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                            )
-                                        ),
-                                        dbo.computeInteluckPenaltyCalc(
-                                            dbo.computePODStatusPayment(
-                                                dbo.computeOverdueDays(
-                                                    podsub.U_ActualHCRecDate,
-                                                    dbo.computePODSubmitDeadline(
-                                                        podsub.U_DeliveryDateDTR,
-                                                        ISNULL(clientsub.U_CDC,0)
-                                                    ),
-                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                )
-                                            ),
-                                            dbo.computeOverdueDays(
-                                                podsub.U_ActualHCRecDate,
-                                                dbo.computePODSubmitDeadline(
-                                                    podsub.U_DeliveryDateDTR,
-                                                    ISNULL(clientsub.U_CDC,0)
-                                                ),
-                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                            )
-                                        ),
-                                        dbo.computeLostPenaltyCalc(
-                                            dbo.computePODStatusPayment(
-                                                dbo.computeOverdueDays(
-                                                    podsub.U_ActualHCRecDate,
-                                                    dbo.computePODSubmitDeadline(
-                                                        podsub.U_DeliveryDateDTR,
-                                                        ISNULL(clientsub.U_CDC,0)
-                                                    ),
-                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                )
-                                            ),
-                                            podsub.U_InitialHCRecDate,
-                                            podsub.U_DeliveryDateDTR,
-                                            pricingsub.U_TotalInitialTruckers
-                                        ),
-                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                    ),
-                                    ISNULL(podsub.U_PercPenaltyCharge,0)))
-
-
-
-                                AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                LEFT JOIN [@FirstratesTP] ratessub ON ratessub.U_BN = tpsub.U_BookingId AND ratessub.U_PVNo = SUBSTRING(tpsub.U_PVNo, 1, 9)
-
-
-                            WHERE tpsub.U_BookingId = T0.U_BookingId
-
-                            )
-
-                            ,0)
-
-
-                                        --TOTAL AP 2 UNPAID  ------------
-                                        WHEN CHARINDEX(',', CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                    (
-                                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                            )) >  0 AND
-                                CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                (
-                                                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                        ) IS NULL
-                                        THEN 
-                                        ISNULL((
-                                            SELECT DISTINCT
-
-                                (
-                                                CASE WHEN T5.U_Rates LIKE '%U_GrossTruckerRates%' THEN 
-                                                    CASE
-                                                        WHEN ISNULL( truckersub.VatStatus,'Y') = 'Y' THEN pricingsub.U_GrossTruckerRates
-                                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'N' THEN (pricingsub.U_GrossTruckerRates / 1.12)
-                                                    END 
-                                                ELSE 0.00 
-                                                END
-                                                +
-                                                CASE WHEN T5.U_Rates LIKE '%U_ActualRates%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualRates AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +
-                                                CASE WHEN T5.U_Rates LIKE '%U_RateAdjustments%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_RateAdjustments AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +
-                                                CASE WHEN T5.U_Rates LIKE '%U_DemurrageN%' THEN 
-                                                    CASE
-                                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'Y' THEN pricingsub.U_Demurrage2
-                                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'N' THEN (pricingsub.U_Demurrage2 / 1.12) 
-                                                    END
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_totalAddtlCharges2%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualCharges AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_ActualDemurrage%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualDemurrage AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_ActualCharges%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualCharges AS FLOAT),''),0)
-
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_BoomTruck2%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_BoomTruck2 AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_OtherCharges%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_OtherCharges AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-
-                                            )
-                                            -
-                                            ISNULL(tpsub.U_OtherDeductions,0) 
-
-                                            +
-
-                                                abs(dbo.computeTotalPenaltyWaived(
-                                                    dbo.computeTotalSubPenalties(
-                                                        dbo.computeClientPenaltyCalc(
-                                                            dbo.computeClientSubOverdue(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                podsub.U_ClientReceivedDate,
-                                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                            )
-                                                        ),
-                                                        dbo.computeInteluckPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeLostPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            podsub.U_InitialHCRecDate,
-                                                            podsub.U_DeliveryDateDTR,
-                                                            pricingsub.U_TotalInitialTruckers
-                                                        ),
-                                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                                    ),
-                                                    ISNULL(podsub.U_PercPenaltyCharge,0))
-                                                ) AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                --INNER JOIN [@RATESPERPV] ratessub ON ratessub.Code = tpsub.U_PVNo
-                                INNER JOIN [@RATESPERPV] T5 ON T5.Code = SUBSTRING(tpsub.U_PVNo, 11, 19)
-                            WHERE tpsub.U_BookingId =  T0.U_BookingId
-
-
-                                            ),0)+ ISNULL((
-
-                                            SELECT DISTINCT
-
-                                (
-
-                                                ISNULL(TRY_PARSE(ratessub.U_Amount AS FLOAT),0)+
-                                            --ISNULL(tpsub.U_ActualRates,0) +
-
-                                                ISNULL(tpsub.U_RateAdjustments,0) +
-
-
-
-                                                ISNULL(TRY_PARSE(ratessub.U_AddlAmount AS FLOAT),0)  
-                                            --+
-
-                                            --ISNULL(tpsub.U_ActualDemurrage,0) +
-                                            --ISNULL(tpsub.U_ActualCharges,0)+
-                                            --ISNULL(NULLIF(tpsub.U_BoomTruck2,''),0) +
-                                            --ISNULL(tpsub.U_OtherCharges,0) 
-
-                                            )
-
-                                            -
-
-                                            (ABS(dbo.computeTotalSubPenalties(
-                                                    dbo.computeClientPenaltyCalc(
-                                                        dbo.computeClientSubOverdue(
-                                                            podsub.U_DeliveryDateDTR,
-                                                            podsub.U_ClientReceivedDate,
-                                                            ISNULL(podsub.U_WaivedDays, 0),
-                                                            CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                        )
-                                                    ),
-                                                    dbo.computeInteluckPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeOverdueDays(
-                                                            podsub.U_ActualHCRecDate,
-                                                            dbo.computePODSubmitDeadline(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                ISNULL(clientsub.U_CDC,0)
-                                                            ),
-                                                            ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                        )
-                                                    ),
-                                                    dbo.computeLostPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        podsub.U_InitialHCRecDate,
-                                                        podsub.U_DeliveryDateDTR,
-                                                        pricingsub.U_TotalInitialTruckers
-                                                    ),
-                                                    ISNULL(podsub.U_PenaltiesManual,0)
-                                                )) -
-
-                                                dbo.computeTotalPenaltyWaived(
-                                                    dbo.computeTotalSubPenalties(
-                                                        dbo.computeClientPenaltyCalc(
-                                                            dbo.computeClientSubOverdue(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                podsub.U_ClientReceivedDate,
-                                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                            )
-                                                        ),
-                                                        dbo.computeInteluckPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeLostPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            podsub.U_InitialHCRecDate,
-                                                            podsub.U_DeliveryDateDTR,
-                                                            pricingsub.U_TotalInitialTruckers
-                                                        ),
-                                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                                    ),
-                                                    ISNULL(podsub.U_PercPenaltyCharge,0)))
-
-
-
-                                                AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                LEFT JOIN [@FirstratesTP] ratessub ON ratessub.U_BN = tpsub.U_BookingId AND ratessub.U_PVNo = SUBSTRING(tpsub.U_PVNo, 1, 9)
-
-
-                            WHERE tpsub.U_BookingId = T0.U_BookingId
-
-                                            )
-
-                                            ,0)
-
-
-                                        --TOTAL AP 1 PAID  NO UNPAID------------
-                                        WHEN CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                    (
-                                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                            ) IS NULL AND
-                                CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                (
-                                                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                        ) IS NOT NULL
-                                        THEN 
-                                        ISNULL((
-
-                                            SELECT DISTINCT
-
-                                (
-
-                                                ISNULL(TRY_PARSE(ratessub.U_Amount AS FLOAT),0)+
-                                            --ISNULL(tpsub.U_ActualRates,0) +
-
-                                                ISNULL(tpsub.U_RateAdjustments,0) +
-
-
-
-                                                ISNULL(TRY_PARSE(ratessub.U_AddlAmount AS FLOAT),0)  
-                                            --+
-
-                                            --ISNULL(tpsub.U_ActualDemurrage,0) +
-                                            --ISNULL(tpsub.U_ActualCharges,0)+
-                                            --ISNULL(NULLIF(tpsub.U_BoomTruck2,''),0) +
-                                            --ISNULL(tpsub.U_OtherCharges,0) 
-
-                                            )
-
-                                            -
-
-                                            (ABS(dbo.computeTotalSubPenalties(
-                                                    dbo.computeClientPenaltyCalc(
-                                                        dbo.computeClientSubOverdue(
-                                                            podsub.U_DeliveryDateDTR,
-                                                            podsub.U_ClientReceivedDate,
-                                                            ISNULL(podsub.U_WaivedDays, 0),
-                                                            CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                        )
-                                                    ),
-                                                    dbo.computeInteluckPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeOverdueDays(
-                                                            podsub.U_ActualHCRecDate,
-                                                            dbo.computePODSubmitDeadline(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                ISNULL(clientsub.U_CDC,0)
-                                                            ),
-                                                            ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                        )
-                                                    ),
-                                                    dbo.computeLostPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        podsub.U_InitialHCRecDate,
-                                                        podsub.U_DeliveryDateDTR,
-                                                        pricingsub.U_TotalInitialTruckers
-                                                    ),
-                                                    ISNULL(podsub.U_PenaltiesManual,0)
-                                                )) -
-
-                                                dbo.computeTotalPenaltyWaived(
-                                                    dbo.computeTotalSubPenalties(
-                                                        dbo.computeClientPenaltyCalc(
-                                                            dbo.computeClientSubOverdue(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                podsub.U_ClientReceivedDate,
-                                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                            )
-                                                        ),
-                                                        dbo.computeInteluckPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeLostPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            podsub.U_InitialHCRecDate,
-                                                            podsub.U_DeliveryDateDTR,
-                                                            pricingsub.U_TotalInitialTruckers
-                                                        ),
-                                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                                    ),
-                                                    ISNULL(podsub.U_PercPenaltyCharge,0)))
-
-
-
-                                                AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                LEFT JOIN [@FirstratesTP] ratessub ON ratessub.U_BN = tpsub.U_BookingId AND ratessub.U_PVNo = SUBSTRING(tpsub.U_PVNo, 1, 9)
-
-
-                            WHERE tpsub.U_BookingId = T0.U_BookingId
-
-                                            )
-
-                                            ,0)
-
-                                        --TOTAL AP 1 UNPAID  ------------
-                                        WHEN CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                    (
-                                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                            ) IS NOT NULL AND
-                                CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                (
-                                                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                        ) IS NULL
-                                        THEN ISNULL((
-
-                                            SELECT DISTINCT
-
-                                (
-
-                                                ISNULL(TRY_PARSE(ratessub.U_Amount AS FLOAT),0)+
-                                            --ISNULL(tpsub.U_ActualRates,0) +
-
-                                                ISNULL(tpsub.U_RateAdjustments,0) +
-
-
-
-                                                ISNULL(TRY_PARSE(ratessub.U_AddlAmount AS FLOAT),0)  
-                                            --+
-
-                                            --ISNULL(tpsub.U_ActualDemurrage,0) +
-                                            --ISNULL(tpsub.U_ActualCharges,0)+
-                                            --ISNULL(NULLIF(tpsub.U_BoomTruck2,''),0) +
-                                            --ISNULL(tpsub.U_OtherCharges,0) 
-
-                                            )
-
-                                            -
-
-                                            (ABS(dbo.computeTotalSubPenalties(
-                                                    dbo.computeClientPenaltyCalc(
-                                                        dbo.computeClientSubOverdue(
-                                                            podsub.U_DeliveryDateDTR,
-                                                            podsub.U_ClientReceivedDate,
-                                                            ISNULL(podsub.U_WaivedDays, 0),
-                                                            CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                        )
-                                                    ),
-                                                    dbo.computeInteluckPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeOverdueDays(
-                                                            podsub.U_ActualHCRecDate,
-                                                            dbo.computePODSubmitDeadline(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                ISNULL(clientsub.U_CDC,0)
-                                                            ),
-                                                            ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                        )
-                                                    ),
-                                                    dbo.computeLostPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        podsub.U_InitialHCRecDate,
-                                                        podsub.U_DeliveryDateDTR,
-                                                        pricingsub.U_TotalInitialTruckers
-                                                    ),
-                                                    ISNULL(podsub.U_PenaltiesManual,0)
-                                                )) -
-
-                                                dbo.computeTotalPenaltyWaived(
-                                                    dbo.computeTotalSubPenalties(
-                                                        dbo.computeClientPenaltyCalc(
-                                                            dbo.computeClientSubOverdue(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                podsub.U_ClientReceivedDate,
-                                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                            )
-                                                        ),
-                                                        dbo.computeInteluckPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeLostPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            podsub.U_InitialHCRecDate,
-                                                            podsub.U_DeliveryDateDTR,
-                                                            pricingsub.U_TotalInitialTruckers
-                                                        ),
-                                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                                    ),
-                                                    ISNULL(podsub.U_PercPenaltyCharge,0)))
-
-
-
-                                                AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                LEFT JOIN [@FirstratesTP] ratessub ON ratessub.U_BN = tpsub.U_BookingId AND ratessub.U_PVNo = SUBSTRING(tpsub.U_PVNo, 1, 9)
-
-
-                            WHERE tpsub.U_BookingId = T0.U_BookingId
-
-                                            )
-
-                                            ,0)
-                                        ELSE 
-
-                                        0.00
-                                    END
-                                ELSE 0.00
-                            END
+                            (SELECT value FROM @TotalAP WHERE id = T0.U_BookingId)
                         ELSE NULL
                     END
                 ELSE NULL
@@ -1556,1277 +751,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_VarTP') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            CASE
-
-
-                                WHEN EXISTS(
-                                    SELECT 1
-                            FROM OPCH header
-                                LEFT JOIN PCH1 line ON header.DocEntry = line.DocEntry
-                            WHERE header.CANCELED = 'N' AND REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%'
-                                ) THEN 
-                                    CASE 
-                                        --TOTAL AP 2 PAID  ------------
-                                        WHEN CHARINDEX(',', CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                    (
-                                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                            )) >  0 AND
-                                CAST((
-                                                SELECT DISTINCT
-                                    SUBSTRING(
-                                                    (
-                                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                            ) IS NULL
-                                        THEN 
-                                        ISNULL((
-                                            SELECT DISTINCT
-
-                                (
-                                                CASE WHEN T5.U_Rates LIKE '%U_GrossTruckerRates%' THEN 
-                                                    CASE
-                                                        WHEN ISNULL( truckersub.VatStatus,'Y') = 'Y' THEN pricingsub.U_GrossTruckerRates
-                                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'N' THEN (pricingsub.U_GrossTruckerRates / 1.12)
-                                                    END 
-                                                ELSE 0.00 
-                                                END
-                                                +
-                                                CASE WHEN T5.U_Rates LIKE '%U_ActualRates%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualRates AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +
-                                                CASE WHEN T5.U_Rates LIKE '%U_RateAdjustments%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_RateAdjustments AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +
-                                                CASE WHEN T5.U_Rates LIKE '%U_DemurrageN%' THEN 
-                                                    CASE
-                                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'Y' THEN pricingsub.U_Demurrage2
-                                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'N' THEN (pricingsub.U_Demurrage2 / 1.12) 
-                                                    END
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_totalAddtlCharges2%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualCharges AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_ActualDemurrage%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualDemurrage AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_ActualCharges%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualCharges AS FLOAT),''),0)
-
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_BoomTruck2%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_BoomTruck2 AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_OtherCharges%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_OtherCharges AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-
-                                            )
-                                            -
-                                            ISNULL(tpsub.U_OtherDeductions,0) 
-
-                                            +
-
-                                                abs(dbo.computeTotalPenaltyWaived(
-                                                    dbo.computeTotalSubPenalties(
-                                                        dbo.computeClientPenaltyCalc(
-                                                            dbo.computeClientSubOverdue(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                podsub.U_ClientReceivedDate,
-                                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                            )
-                                                        ),
-                                                        dbo.computeInteluckPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeLostPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            podsub.U_InitialHCRecDate,
-                                                            podsub.U_DeliveryDateDTR,
-                                                            pricingsub.U_TotalInitialTruckers
-                                                        ),
-                                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                                    ),
-                                                    ISNULL(podsub.U_PercPenaltyCharge,0))
-                                                ) AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                --INNER JOIN [@RATESPERPV] ratessub ON ratessub.Code = tpsub.U_PVNo
-                                INNER JOIN [@RATESPERPV] T5 ON T5.Code = SUBSTRING(tpsub.U_PVNo, 11, 19)
-                            WHERE tpsub.U_BookingId =  T0.U_BookingId
-
-
-                                            ),0)+ ISNULL((
-
-                                            SELECT DISTINCT
-
-                                (
-
-                                                ISNULL(TRY_PARSE(ratessub.U_Amount AS FLOAT),0)+
-                                            --ISNULL(tpsub.U_ActualRates,0) +
-
-                                                ISNULL(tpsub.U_RateAdjustments,0) +
-
-
-
-                                                ISNULL(TRY_PARSE(ratessub.U_AddlAmount AS FLOAT),0)  
-                                            --+
-
-                                            --ISNULL(tpsub.U_ActualDemurrage,0) +
-                                            --ISNULL(tpsub.U_ActualCharges,0)+
-                                            --ISNULL(NULLIF(tpsub.U_BoomTruck2,''),0) +
-                                            --ISNULL(tpsub.U_OtherCharges,0) 
-
-                                            )
-
-                                            -
-
-                                            (ABS(dbo.computeTotalSubPenalties(
-                                                    dbo.computeClientPenaltyCalc(
-                                                        dbo.computeClientSubOverdue(
-                                                            podsub.U_DeliveryDateDTR,
-                                                            podsub.U_ClientReceivedDate,
-                                                            ISNULL(podsub.U_WaivedDays, 0),
-                                                            CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                        )
-                                                    ),
-                                                    dbo.computeInteluckPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeOverdueDays(
-                                                            podsub.U_ActualHCRecDate,
-                                                            dbo.computePODSubmitDeadline(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                ISNULL(clientsub.U_CDC,0)
-                                                            ),
-                                                            ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                        )
-                                                    ),
-                                                    dbo.computeLostPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        podsub.U_InitialHCRecDate,
-                                                        podsub.U_DeliveryDateDTR,
-                                                        pricingsub.U_TotalInitialTruckers
-                                                    ),
-                                                    ISNULL(podsub.U_PenaltiesManual,0)
-                                                )) -
-
-                                                dbo.computeTotalPenaltyWaived(
-                                                    dbo.computeTotalSubPenalties(
-                                                        dbo.computeClientPenaltyCalc(
-                                                            dbo.computeClientSubOverdue(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                podsub.U_ClientReceivedDate,
-                                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                            )
-                                                        ),
-                                                        dbo.computeInteluckPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeLostPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            podsub.U_InitialHCRecDate,
-                                                            podsub.U_DeliveryDateDTR,
-                                                            pricingsub.U_TotalInitialTruckers
-                                                        ),
-                                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                                    ),
-                                                    ISNULL(podsub.U_PercPenaltyCharge,0)))
-
-
-
-                                                AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                LEFT JOIN [@FirstratesTP] ratessub ON ratessub.U_BN = tpsub.U_BookingId AND ratessub.U_PVNo = SUBSTRING(tpsub.U_PVNo, 1, 9)
-
-
-                            WHERE tpsub.U_BookingId = T0.U_BookingId
-
-                                            )
-
-                                            ,0)    
-                                        --TOTAL AP 1 UNPAID 1 PAID  ------------
-                                        WHEN CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                (
-                                                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                        ) IS NOT NULL AND
-                                CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                (
-                                                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                        ) IS NOT NULL
-                                        THEN 
-
-                                    ISNULL((
-                            SELECT DISTINCT
-
-                                (
-                            CASE WHEN T5.U_Rates LIKE '%U_GrossTruckerRates%' THEN 
-                                    CASE
-                                        WHEN ISNULL( truckersub.VatStatus,'Y') = 'Y' THEN pricingsub.U_GrossTruckerRates
-                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'N' THEN (pricingsub.U_GrossTruckerRates / 1.12)
-                                    END 
-                                ELSE 0.00 
-                                END
-                                +
-                                CASE WHEN T5.U_Rates LIKE '%U_ActualRates%' THEN 
-                                    ISNULL(NULLIF(CAST(tpsub.U_ActualRates AS FLOAT),''),0)
-                                ELSE 0.00
-                                END 
-                                +
-                                CASE WHEN T5.U_Rates LIKE '%U_RateAdjustments%' THEN 
-                                    ISNULL(NULLIF(CAST(tpsub.U_RateAdjustments AS FLOAT),''),0)
-                                ELSE 0.00
-                                END 
-                                +
-                                CASE WHEN T5.U_Rates LIKE '%U_DemurrageN%' THEN 
-                                    CASE
-                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'Y' THEN pricingsub.U_Demurrage2
-                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'N' THEN (pricingsub.U_Demurrage2 / 1.12) 
-                                    END
-                                ELSE 0.00
-                                END 
-                                +  
-                                CASE WHEN T5.U_Rates LIKE '%U_totalAddtlCharges2%' THEN 
-                                    ISNULL(NULLIF(CAST(tpsub.U_ActualCharges AS FLOAT),''),0)
-                                ELSE 0.00
-                                END 
-                                +  
-                                CASE WHEN T5.U_Rates LIKE '%U_ActualDemurrage%' THEN 
-                                    ISNULL(NULLIF(CAST(tpsub.U_ActualDemurrage AS FLOAT),''),0)
-                                ELSE 0.00
-                                END 
-                                +  
-                                CASE WHEN T5.U_Rates LIKE '%U_ActualCharges%' THEN 
-                                    ISNULL(NULLIF(CAST(tpsub.U_ActualCharges AS FLOAT),''),0)
-
-                                ELSE 0.00
-                                END 
-                                +  
-                                CASE WHEN T5.U_Rates LIKE '%U_BoomTruck2%' THEN 
-                                    ISNULL(NULLIF(CAST(tpsub.U_BoomTruck2 AS FLOAT),''),0)
-                                ELSE 0.00
-                                END 
-                                +  
-                                CASE WHEN T5.U_Rates LIKE '%U_OtherCharges%' THEN 
-                                    ISNULL(NULLIF(CAST(tpsub.U_OtherCharges AS FLOAT),''),0)
-                                ELSE 0.00
-                                END 
-
-                            )
-                            -
-                            ISNULL(tpsub.U_OtherDeductions,0) 
-
-                            +
-
-                                abs(dbo.computeTotalPenaltyWaived(
-                                    dbo.computeTotalSubPenalties(
-                                        dbo.computeClientPenaltyCalc(
-                                            dbo.computeClientSubOverdue(
-                                                podsub.U_DeliveryDateDTR,
-                                                podsub.U_ClientReceivedDate,
-                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                            )
-                                        ),
-                                        dbo.computeInteluckPenaltyCalc(
-                                            dbo.computePODStatusPayment(
-                                                dbo.computeOverdueDays(
-                                                    podsub.U_ActualHCRecDate,
-                                                    dbo.computePODSubmitDeadline(
-                                                        podsub.U_DeliveryDateDTR,
-                                                        ISNULL(clientsub.U_CDC,0)
-                                                    ),
-                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                )
-                                            ),
-                                            dbo.computeOverdueDays(
-                                                podsub.U_ActualHCRecDate,
-                                                dbo.computePODSubmitDeadline(
-                                                    podsub.U_DeliveryDateDTR,
-                                                    ISNULL(clientsub.U_CDC,0)
-                                                ),
-                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                            )
-                                        ),
-                                        dbo.computeLostPenaltyCalc(
-                                            dbo.computePODStatusPayment(
-                                                dbo.computeOverdueDays(
-                                                    podsub.U_ActualHCRecDate,
-                                                    dbo.computePODSubmitDeadline(
-                                                        podsub.U_DeliveryDateDTR,
-                                                        ISNULL(clientsub.U_CDC,0)
-                                                    ),
-                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                )
-                                            ),
-                                            podsub.U_InitialHCRecDate,
-                                            podsub.U_DeliveryDateDTR,
-                                            pricingsub.U_TotalInitialTruckers
-                                        ),
-                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                    ),
-                                    ISNULL(podsub.U_PercPenaltyCharge,0))
-                                ) AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                --INNER JOIN [@RATESPERPV] ratessub ON ratessub.Code = tpsub.U_PVNo
-                                INNER JOIN [@RATESPERPV] T5 ON T5.Code = SUBSTRING(tpsub.U_PVNo, 11, 19)
-                            WHERE tpsub.U_BookingId =  T0.U_BookingId
-
-
-                            ),0)+ ISNULL((
-
-                            SELECT DISTINCT
-
-                                (
-
-                                ISNULL(TRY_PARSE(ratessub.U_Amount AS FLOAT),0)+
-                            --ISNULL(tpsub.U_ActualRates,0) +
-
-                            ISNULL(tpsub.U_RateAdjustments,0) +
-
-
-
-                                ISNULL(TRY_PARSE(ratessub.U_AddlAmount AS FLOAT),0)  
-                            --+
-
-                            --ISNULL(tpsub.U_ActualDemurrage,0) +
-                            --ISNULL(tpsub.U_ActualCharges,0)+
-                            --ISNULL(NULLIF(tpsub.U_BoomTruck2,''),0) +
-                            --ISNULL(tpsub.U_OtherCharges,0) 
-
-                            )
-
-                            -
-
-                            (ABS(dbo.computeTotalSubPenalties(
-                                    dbo.computeClientPenaltyCalc(
-                                        dbo.computeClientSubOverdue(
-                                            podsub.U_DeliveryDateDTR,
-                                            podsub.U_ClientReceivedDate,
-                                            ISNULL(podsub.U_WaivedDays, 0),
-                                            CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                        )
-                                    ),
-                                    dbo.computeInteluckPenaltyCalc(
-                                        dbo.computePODStatusPayment(
-                                            dbo.computeOverdueDays(
-                                                podsub.U_ActualHCRecDate,
-                                                dbo.computePODSubmitDeadline(
-                                                    podsub.U_DeliveryDateDTR,
-                                                    ISNULL(clientsub.U_CDC,0)
-                                                ),
-                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                            )
-                                        ),
-                                        dbo.computeOverdueDays(
-                                            podsub.U_ActualHCRecDate,
-                                            dbo.computePODSubmitDeadline(
-                                                podsub.U_DeliveryDateDTR,
-                                                ISNULL(clientsub.U_CDC,0)
-                                            ),
-                                            ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                        )
-                                    ),
-                                    dbo.computeLostPenaltyCalc(
-                                        dbo.computePODStatusPayment(
-                                            dbo.computeOverdueDays(
-                                                podsub.U_ActualHCRecDate,
-                                                dbo.computePODSubmitDeadline(
-                                                    podsub.U_DeliveryDateDTR,
-                                                    ISNULL(clientsub.U_CDC,0)
-                                                ),
-                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                            )
-                                        ),
-                                        podsub.U_InitialHCRecDate,
-                                        podsub.U_DeliveryDateDTR,
-                                        pricingsub.U_TotalInitialTruckers
-                                    ),
-                                    ISNULL(podsub.U_PenaltiesManual,0)
-                                )) -
-
-                                dbo.computeTotalPenaltyWaived(
-                                    dbo.computeTotalSubPenalties(
-                                        dbo.computeClientPenaltyCalc(
-                                            dbo.computeClientSubOverdue(
-                                                podsub.U_DeliveryDateDTR,
-                                                podsub.U_ClientReceivedDate,
-                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                            )
-                                        ),
-                                        dbo.computeInteluckPenaltyCalc(
-                                            dbo.computePODStatusPayment(
-                                                dbo.computeOverdueDays(
-                                                    podsub.U_ActualHCRecDate,
-                                                    dbo.computePODSubmitDeadline(
-                                                        podsub.U_DeliveryDateDTR,
-                                                        ISNULL(clientsub.U_CDC,0)
-                                                    ),
-                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                )
-                                            ),
-                                            dbo.computeOverdueDays(
-                                                podsub.U_ActualHCRecDate,
-                                                dbo.computePODSubmitDeadline(
-                                                    podsub.U_DeliveryDateDTR,
-                                                    ISNULL(clientsub.U_CDC,0)
-                                                ),
-                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                            )
-                                        ),
-                                        dbo.computeLostPenaltyCalc(
-                                            dbo.computePODStatusPayment(
-                                                dbo.computeOverdueDays(
-                                                    podsub.U_ActualHCRecDate,
-                                                    dbo.computePODSubmitDeadline(
-                                                        podsub.U_DeliveryDateDTR,
-                                                        ISNULL(clientsub.U_CDC,0)
-                                                    ),
-                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                )
-                                            ),
-                                            podsub.U_InitialHCRecDate,
-                                            podsub.U_DeliveryDateDTR,
-                                            pricingsub.U_TotalInitialTruckers
-                                        ),
-                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                    ),
-                                    ISNULL(podsub.U_PercPenaltyCharge,0)))
-
-
-
-                                AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                LEFT JOIN [@FirstratesTP] ratessub ON ratessub.U_BN = tpsub.U_BookingId AND ratessub.U_PVNo = SUBSTRING(tpsub.U_PVNo, 1, 9)
-
-
-                            WHERE tpsub.U_BookingId = T0.U_BookingId
-
-                            )
-
-                            ,0)
-
-
-                                        --TOTAL AP 2 UNPAID  ------------
-                                        WHEN CHARINDEX(',', CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                    (
-                                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                            )) >  0 AND
-                                CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                (
-                                                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                        ) IS NULL
-                                        THEN 
-                                        ISNULL((
-                                            SELECT DISTINCT
-
-                                (
-                                                CASE WHEN T5.U_Rates LIKE '%U_GrossTruckerRates%' THEN 
-                                                    CASE
-                                                        WHEN ISNULL( truckersub.VatStatus,'Y') = 'Y' THEN pricingsub.U_GrossTruckerRates
-                                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'N' THEN (pricingsub.U_GrossTruckerRates / 1.12)
-                                                    END 
-                                                ELSE 0.00 
-                                                END
-                                                +
-                                                CASE WHEN T5.U_Rates LIKE '%U_ActualRates%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualRates AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +
-                                                CASE WHEN T5.U_Rates LIKE '%U_RateAdjustments%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_RateAdjustments AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +
-                                                CASE WHEN T5.U_Rates LIKE '%U_DemurrageN%' THEN 
-                                                    CASE
-                                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'Y' THEN pricingsub.U_Demurrage2
-                                                        WHEN ISNULL(truckersub.VatStatus,'Y') = 'N' THEN (pricingsub.U_Demurrage2 / 1.12) 
-                                                    END
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_totalAddtlCharges2%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualCharges AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_ActualDemurrage%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualDemurrage AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_ActualCharges%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_ActualCharges AS FLOAT),''),0)
-
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_BoomTruck2%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_BoomTruck2 AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-                                                +  
-                                                CASE WHEN T5.U_Rates LIKE '%U_OtherCharges%' THEN 
-                                                    ISNULL(NULLIF(CAST(tpsub.U_OtherCharges AS FLOAT),''),0)
-                                                ELSE 0.00
-                                                END 
-
-                                            )
-                                            -
-                                            ISNULL(tpsub.U_OtherDeductions,0) 
-
-                                            +
-
-                                                abs(dbo.computeTotalPenaltyWaived(
-                                                    dbo.computeTotalSubPenalties(
-                                                        dbo.computeClientPenaltyCalc(
-                                                            dbo.computeClientSubOverdue(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                podsub.U_ClientReceivedDate,
-                                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                            )
-                                                        ),
-                                                        dbo.computeInteluckPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeLostPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            podsub.U_InitialHCRecDate,
-                                                            podsub.U_DeliveryDateDTR,
-                                                            pricingsub.U_TotalInitialTruckers
-                                                        ),
-                                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                                    ),
-                                                    ISNULL(podsub.U_PercPenaltyCharge,0))
-                                                ) AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                --INNER JOIN [@RATESPERPV] ratessub ON ratessub.Code = tpsub.U_PVNo
-                                INNER JOIN [@RATESPERPV] T5 ON T5.Code = SUBSTRING(tpsub.U_PVNo, 11, 19)
-                            WHERE tpsub.U_BookingId =  T0.U_BookingId
-
-
-                                            ),0)+ ISNULL((
-
-                                            SELECT DISTINCT
-
-                                (
-
-                                                ISNULL(TRY_PARSE(ratessub.U_Amount AS FLOAT),0)+
-                                            --ISNULL(tpsub.U_ActualRates,0) +
-
-                                                ISNULL(tpsub.U_RateAdjustments,0) +
-
-
-
-                                                ISNULL(TRY_PARSE(ratessub.U_AddlAmount AS FLOAT),0)  
-                                            --+
-
-                                            --ISNULL(tpsub.U_ActualDemurrage,0) +
-                                            --ISNULL(tpsub.U_ActualCharges,0)+
-                                            --ISNULL(NULLIF(tpsub.U_BoomTruck2,''),0) +
-                                            --ISNULL(tpsub.U_OtherCharges,0) 
-
-                                            )
-
-                                            -
-
-                                            (ABS(dbo.computeTotalSubPenalties(
-                                                    dbo.computeClientPenaltyCalc(
-                                                        dbo.computeClientSubOverdue(
-                                                            podsub.U_DeliveryDateDTR,
-                                                            podsub.U_ClientReceivedDate,
-                                                            ISNULL(podsub.U_WaivedDays, 0),
-                                                            CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                        )
-                                                    ),
-                                                    dbo.computeInteluckPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeOverdueDays(
-                                                            podsub.U_ActualHCRecDate,
-                                                            dbo.computePODSubmitDeadline(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                ISNULL(clientsub.U_CDC,0)
-                                                            ),
-                                                            ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                        )
-                                                    ),
-                                                    dbo.computeLostPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        podsub.U_InitialHCRecDate,
-                                                        podsub.U_DeliveryDateDTR,
-                                                        pricingsub.U_TotalInitialTruckers
-                                                    ),
-                                                    ISNULL(podsub.U_PenaltiesManual,0)
-                                                )) -
-
-                                                dbo.computeTotalPenaltyWaived(
-                                                    dbo.computeTotalSubPenalties(
-                                                        dbo.computeClientPenaltyCalc(
-                                                            dbo.computeClientSubOverdue(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                podsub.U_ClientReceivedDate,
-                                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                            )
-                                                        ),
-                                                        dbo.computeInteluckPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeLostPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            podsub.U_InitialHCRecDate,
-                                                            podsub.U_DeliveryDateDTR,
-                                                            pricingsub.U_TotalInitialTruckers
-                                                        ),
-                                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                                    ),
-                                                    ISNULL(podsub.U_PercPenaltyCharge,0)))
-
-
-
-                                                AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                LEFT JOIN [@FirstratesTP] ratessub ON ratessub.U_BN = tpsub.U_BookingId AND ratessub.U_PVNo = SUBSTRING(tpsub.U_PVNo, 1, 9)
-
-
-                            WHERE tpsub.U_BookingId = T0.U_BookingId
-
-                                            )
-
-                                            ,0)
-
-
-                                        --TOTAL AP 1 PAID  NO UNPAID------------
-                                        WHEN CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                    (
-                                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                            ) IS NULL AND
-                                CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                (
-                                                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                        ) IS NOT NULL
-                                        THEN 
-                                        ISNULL((
-
-                                            SELECT DISTINCT
-
-                                (
-
-                                                ISNULL(TRY_PARSE(ratessub.U_Amount AS FLOAT),0)+
-                                            --ISNULL(tpsub.U_ActualRates,0) +
-
-                                                ISNULL(tpsub.U_RateAdjustments,0) +
-
-
-
-                                                ISNULL(TRY_PARSE(ratessub.U_AddlAmount AS FLOAT),0)  
-                                            --+
-
-                                            --ISNULL(tpsub.U_ActualDemurrage,0) +
-                                            --ISNULL(tpsub.U_ActualCharges,0)+
-                                            --ISNULL(NULLIF(tpsub.U_BoomTruck2,''),0) +
-                                            --ISNULL(tpsub.U_OtherCharges,0) 
-
-                                            )
-
-                                            -
-
-                                            (ABS(dbo.computeTotalSubPenalties(
-                                                    dbo.computeClientPenaltyCalc(
-                                                        dbo.computeClientSubOverdue(
-                                                            podsub.U_DeliveryDateDTR,
-                                                            podsub.U_ClientReceivedDate,
-                                                            ISNULL(podsub.U_WaivedDays, 0),
-                                                            CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                        )
-                                                    ),
-                                                    dbo.computeInteluckPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeOverdueDays(
-                                                            podsub.U_ActualHCRecDate,
-                                                            dbo.computePODSubmitDeadline(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                ISNULL(clientsub.U_CDC,0)
-                                                            ),
-                                                            ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                        )
-                                                    ),
-                                                    dbo.computeLostPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        podsub.U_InitialHCRecDate,
-                                                        podsub.U_DeliveryDateDTR,
-                                                        pricingsub.U_TotalInitialTruckers
-                                                    ),
-                                                    ISNULL(podsub.U_PenaltiesManual,0)
-                                                )) -
-
-                                                dbo.computeTotalPenaltyWaived(
-                                                    dbo.computeTotalSubPenalties(
-                                                        dbo.computeClientPenaltyCalc(
-                                                            dbo.computeClientSubOverdue(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                podsub.U_ClientReceivedDate,
-                                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                            )
-                                                        ),
-                                                        dbo.computeInteluckPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeLostPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            podsub.U_InitialHCRecDate,
-                                                            podsub.U_DeliveryDateDTR,
-                                                            pricingsub.U_TotalInitialTruckers
-                                                        ),
-                                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                                    ),
-                                                    ISNULL(podsub.U_PercPenaltyCharge,0)))
-
-
-
-                                                AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                LEFT JOIN [@FirstratesTP] ratessub ON ratessub.U_BN = tpsub.U_BookingId AND ratessub.U_PVNo = SUBSTRING(tpsub.U_PVNo, 1, 9)
-
-
-                            WHERE tpsub.U_BookingId = T0.U_BookingId
-
-                                            )
-
-                                            ,0)
-
-                                        --TOTAL AP 1 UNPAID  ------------
-                                        WHEN CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                    (
-                                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                            ) IS NOT NULL AND
-                                CAST((
-                                            SELECT DISTINCT
-                                    SUBSTRING(
-                                                (
-                                                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                                    FROM PCH1 line
-                                        LEFT JOIN OPCH header ON header.DocEntry = line.DocEntry
-                                    WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
-                                        or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                                    FOR XML PATH (''), TYPE
-                                                ).value('text()[1]','nvarchar(max)'), 2, 1000) DocEntry
-                                FROM OPCH header
-                                    LEFT JOIN PCH1 line ON line.DocEntry = header.DocEntry
-                                WHERE header.CANCELED = 'N' AND (line.ItemCode = T0.U_BookingId
-                                    or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')) as nvarchar(max)
-                                        ) IS NULL
-                                        THEN ISNULL((
-
-                                            SELECT DISTINCT
-
-                                (
-
-                                                ISNULL(TRY_PARSE(ratessub.U_Amount AS FLOAT),0)+
-                                            --ISNULL(tpsub.U_ActualRates,0) +
-
-                                                ISNULL(tpsub.U_RateAdjustments,0) +
-
-
-
-                                                ISNULL(TRY_PARSE(ratessub.U_AddlAmount AS FLOAT),0)  
-                                            --+
-
-                                            --ISNULL(tpsub.U_ActualDemurrage,0) +
-                                            --ISNULL(tpsub.U_ActualCharges,0)+
-                                            --ISNULL(NULLIF(tpsub.U_BoomTruck2,''),0) +
-                                            --ISNULL(tpsub.U_OtherCharges,0) 
-
-                                            )
-
-                                            -
-
-                                            (ABS(dbo.computeTotalSubPenalties(
-                                                    dbo.computeClientPenaltyCalc(
-                                                        dbo.computeClientSubOverdue(
-                                                            podsub.U_DeliveryDateDTR,
-                                                            podsub.U_ClientReceivedDate,
-                                                            ISNULL(podsub.U_WaivedDays, 0),
-                                                            CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                        )
-                                                    ),
-                                                    dbo.computeInteluckPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeOverdueDays(
-                                                            podsub.U_ActualHCRecDate,
-                                                            dbo.computePODSubmitDeadline(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                ISNULL(clientsub.U_CDC,0)
-                                                            ),
-                                                            ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                        )
-                                                    ),
-                                                    dbo.computeLostPenaltyCalc(
-                                                        dbo.computePODStatusPayment(
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        podsub.U_InitialHCRecDate,
-                                                        podsub.U_DeliveryDateDTR,
-                                                        pricingsub.U_TotalInitialTruckers
-                                                    ),
-                                                    ISNULL(podsub.U_PenaltiesManual,0)
-                                                )) -
-
-                                                dbo.computeTotalPenaltyWaived(
-                                                    dbo.computeTotalSubPenalties(
-                                                        dbo.computeClientPenaltyCalc(
-                                                            dbo.computeClientSubOverdue(
-                                                                podsub.U_DeliveryDateDTR,
-                                                                podsub.U_ClientReceivedDate,
-                                                                ISNULL(podsub.U_WaivedDays, 0),
-                                                                CAST(ISNULL(clientsub.U_DCD,0) as int)
-                                                            )
-                                                        ),
-                                                        dbo.computeInteluckPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            dbo.computeOverdueDays(
-                                                                podsub.U_ActualHCRecDate,
-                                                                dbo.computePODSubmitDeadline(
-                                                                    podsub.U_DeliveryDateDTR,
-                                                                    ISNULL(clientsub.U_CDC,0)
-                                                                ),
-                                                                ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                            )
-                                                        ),
-                                                        dbo.computeLostPenaltyCalc(
-                                                            dbo.computePODStatusPayment(
-                                                                dbo.computeOverdueDays(
-                                                                    podsub.U_ActualHCRecDate,
-                                                                    dbo.computePODSubmitDeadline(
-                                                                        podsub.U_DeliveryDateDTR,
-                                                                        ISNULL(clientsub.U_CDC,0)
-                                                                    ),
-                                                                    ISNULL(podsub.U_HolidayOrWeekend, 0)
-                                                                )
-                                                            ),
-                                                            podsub.U_InitialHCRecDate,
-                                                            podsub.U_DeliveryDateDTR,
-                                                            pricingsub.U_TotalInitialTruckers
-                                                        ),
-                                                        ISNULL(podsub.U_PenaltiesManual,0)
-                                                    ),
-                                                    ISNULL(podsub.U_PercPenaltyCharge,0)))
-
-
-
-                                                AS TotalAmount
-
-
-
-
-                            FROM [@PCTP_TP] tpsub
-                                INNER JOIN [@PCTP_POD] podsub ON tpsub.U_BookingId = podsub.U_BookingNumber
-                                INNER JOIN OCRD truckersub ON podsub.U_SAPTrucker = truckersub.CardCode
-                                INNER JOIN OCRD clientsub ON U_SAPClient = clientsub.CardCode
-                                INNER JOIN [dbo].[@PCTP_PRICING] pricingsub ON tpsub.U_BookingId = pricingsub.U_BookingId
-                                LEFT JOIN [@FirstratesTP] ratessub ON ratessub.U_BN = tpsub.U_BookingId AND ratessub.U_PVNo = SUBSTRING(tpsub.U_PVNo, 1, 9)
-
-
-                            WHERE tpsub.U_BookingId = T0.U_BookingId
-
-                                            )
-
-                                            ,0)
-                                        ELSE 
-
-                                        0.00
-                                    END
-                                ELSE 0.00
-                            END - (T0.U_TotalPayable + T0.U_CAandDP + T0.U_Interest)
+                            (SELECT value FROM @TotalAP WHERE id = T0.U_BookingId) - (T0.U_TotalPayable + T0.U_CAandDP + T0.U_Interest)
                         ELSE NULL
                     END
                 ELSE NULL
@@ -2835,14 +760,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_DocNum') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            CAST(SUBSTRING((
-                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                            FROM PCH1 line WITH (NOLOCK)
-                                LEFT JOIN (SELECT DocNum, DocEntry, CANCELED, PaidSum, U_PVNo FROM OPCH WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
-                            WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
-                                or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                            FOR XML PATH (''), TYPE
-                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(max))
+                            (SELECT value FROM @DocNum WHERE id = T0.U_BookingId)
                         ELSE NULL
                     END
                 ELSE NULL
@@ -2851,14 +769,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_Paid') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN 
-                            CAST(SUBSTRING((
-                                        SELECT CONCAT(', ', header.DocNum)  AS [text()]
-                            FROM PCH1 line WITH (NOLOCK)
-                                LEFT JOIN (SELECT DocNum, DocEntry, CANCELED, PaidSum, U_PVNo FROM OPCH WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
-                            WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
-                                or REPLACE(REPLACE(RTRIM(LTRIM(T0.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-                            FOR XML PATH (''), TYPE
-                                    ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(max))
+                            (SELECT value FROM @Paid WHERE id = T0.U_BookingId)
                         ELSE NULL
                     END
                 ELSE NULL
@@ -2867,31 +778,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_LostPenaltyCalc') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            dbo.computeLostPenaltyCalc(
-                                dbo.computePODStatusPayment(
-                                    dbo.computeOverdueDays(
-                                        pod.U_ActualHCRecDate,
-                                        dbo.computePODSubmitDeadline(
-                                            pod.U_DeliveryDateDTR,
-                                            ISNULL(T4.U_CDC,0)
-                                        ),
-                                        ISNULL(pod.U_HolidayOrWeekend, 0)
-                                    )
-                                ),
-                                pod.U_InitialHCRecDate,
-                                pod.U_DeliveryDateDTR,
-                                CASE
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_GrossTruckerRates, 0)
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_GrossTruckerRates, 0) / 1.12)
-                                END + CASE
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_Demurrage2, 0)
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_Demurrage2, 0) / 1.12)
-                                END + CASE
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (ISNULL(pricing.U_AddtlDrop2, 0) + ISNULL(pricing.U_BoomTruck2, 0) + ISNULL(pricing.U_Manpower2, 0) + ISNULL(pricing.U_Backload2, 0))
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((ISNULL(pricing.U_AddtlDrop2, 0) + ISNULL(pricing.U_BoomTruck2, 0) + ISNULL(pricing.U_Manpower2, 0) + ISNULL(pricing.U_Backload2, 0)) / 1.12)
-                                END
-                                -- pricing.U_TotalInitialTruckers
-                            )
+                            (SELECT value FROM @LostPenaltyCalc WHERE id = T0.U_BookingId)
                         ELSE NULL
                     END
                 ELSE NULL
@@ -2900,62 +787,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalSubPenalty') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            ISNULL(ABS(dbo.computeTotalSubPenalties(
-                                dbo.computeClientPenaltyCalc(
-                                    dbo.computeClientSubOverdue(
-                                        pod.U_DeliveryDateDTR,
-                                        pod.U_ClientReceivedDate,
-                                        ISNULL(pod.U_WaivedDays, 0),
-                                        CAST(ISNULL(T4.U_DCD,0) as int)
-                                    )
-                                ),
-                                dbo.computeInteluckPenaltyCalc(
-                                    dbo.computePODStatusPayment(
-                                        dbo.computeOverdueDays(
-                                            pod.U_ActualHCRecDate,
-                                            dbo.computePODSubmitDeadline(
-                                                pod.U_DeliveryDateDTR,
-                                                ISNULL(T4.U_CDC,0)
-                                            ),
-                                            ISNULL(pod.U_HolidayOrWeekend, 0)
-                                        )
-                                    ),
-                                    dbo.computeOverdueDays(
-                                        pod.U_ActualHCRecDate,
-                                        dbo.computePODSubmitDeadline(
-                                            pod.U_DeliveryDateDTR,
-                                            ISNULL(T4.U_CDC,0)
-                                        ),
-                                        ISNULL(pod.U_HolidayOrWeekend, 0)
-                                    )
-                                ),
-                                dbo.computeLostPenaltyCalc(
-                                    dbo.computePODStatusPayment(
-                                        dbo.computeOverdueDays(
-                                            pod.U_ActualHCRecDate,
-                                            dbo.computePODSubmitDeadline(
-                                                pod.U_DeliveryDateDTR,
-                                                ISNULL(T4.U_CDC,0)
-                                            ),
-                                            ISNULL(pod.U_HolidayOrWeekend, 0)
-                                        )
-                                    ),
-                                    pod.U_InitialHCRecDate,
-                                    pod.U_DeliveryDateDTR,
-                                    CASE
-                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_GrossTruckerRates, 0)
-                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_GrossTruckerRates, 0) / 1.12)
-                                    END + CASE
-                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_Demurrage2, 0)
-                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_Demurrage2, 0) / 1.12)
-                                    END + CASE
-                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (ISNULL(pricing.U_AddtlDrop2, 0) + ISNULL(pricing.U_BoomTruck2, 0) + ISNULL(pricing.U_Manpower2, 0) + ISNULL(pricing.U_Backload2, 0))
-                                        WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((ISNULL(pricing.U_AddtlDrop2, 0) + ISNULL(pricing.U_BoomTruck2, 0) + ISNULL(pricing.U_Manpower2, 0) + ISNULL(pricing.U_Backload2, 0)) / 1.12)
-                                    END
-                                    -- pricing.U_TotalInitialTruckers
-                                ),
-                                ISNULL(pod.U_PenaltiesManual,0)
-                            )), 0)
+                            ISNULL(ABS((SELECT value FROM @TotalSubPenalties WHERE id = T0.U_BookingId)), 0)
                         ELSE NULL
                     END
                 ELSE NULL
@@ -2964,65 +796,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalPenaltyWaived') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            dbo.computeTotalPenaltyWaived(
-                                dbo.computeTotalSubPenalties(
-                                    dbo.computeClientPenaltyCalc(
-                                        dbo.computeClientSubOverdue(
-                                            pod.U_DeliveryDateDTR,
-                                            pod.U_ClientReceivedDate,
-                                            ISNULL(pod.U_WaivedDays, 0),
-                                            CAST(ISNULL(T4.U_DCD,0) as int)
-                                        )
-                                    ),
-                                    dbo.computeInteluckPenaltyCalc(
-                                        dbo.computePODStatusPayment(
-                                            dbo.computeOverdueDays(
-                                                pod.U_ActualHCRecDate,
-                                                dbo.computePODSubmitDeadline(
-                                                    pod.U_DeliveryDateDTR,
-                                                    ISNULL(T4.U_CDC,0)
-                                                ),
-                                                ISNULL(pod.U_HolidayOrWeekend, 0)
-                                            )
-                                        ),
-                                        dbo.computeOverdueDays(
-                                            pod.U_ActualHCRecDate,
-                                            dbo.computePODSubmitDeadline(
-                                                pod.U_DeliveryDateDTR,
-                                                ISNULL(T4.U_CDC,0)
-                                            ),
-                                            ISNULL(pod.U_HolidayOrWeekend, 0)
-                                        )
-                                    ),
-                                    dbo.computeLostPenaltyCalc(
-                                        dbo.computePODStatusPayment(
-                                            dbo.computeOverdueDays(
-                                                pod.U_ActualHCRecDate,
-                                                dbo.computePODSubmitDeadline(
-                                                    pod.U_DeliveryDateDTR,
-                                                    ISNULL(T4.U_CDC,0)
-                                                ),
-                                                ISNULL(pod.U_HolidayOrWeekend, 0)
-                                            )
-                                        ),
-                                        pod.U_InitialHCRecDate,
-                                        pod.U_DeliveryDateDTR,
-                                        CASE
-                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_GrossTruckerRates, 0)
-                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_GrossTruckerRates, 0) / 1.12)
-                                        END + CASE
-                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(pricing.U_Demurrage2, 0)
-                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(pricing.U_Demurrage2, 0) / 1.12)
-                                        END + CASE
-                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (ISNULL(pricing.U_AddtlDrop2, 0) + ISNULL(pricing.U_BoomTruck2, 0) + ISNULL(pricing.U_Manpower2, 0) + ISNULL(pricing.U_Backload2, 0))
-                                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((ISNULL(pricing.U_AddtlDrop2, 0) + ISNULL(pricing.U_BoomTruck2, 0) + ISNULL(pricing.U_Manpower2, 0) + ISNULL(pricing.U_Backload2, 0)) / 1.12)
-                                        END
-                                        -- pricing.U_TotalInitialTruckers
-                                    ),
-                                    ISNULL(pod.U_PenaltiesManual,0)
-                                ),
-                                ISNULL(pod.U_PercPenaltyCharge,0)
-                            )
+                            (SELECT value FROM @TotalPenaltyWaived WHERE id = T0.U_BookingId)
                         ELSE NULL
                     END
                 ELSE NULL
@@ -3031,26 +805,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_InteluckPenaltyCalc') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            dbo.computeInteluckPenaltyCalc(
-                                dbo.computePODStatusPayment(
-                                    dbo.computeOverdueDays(
-                                        pod.U_ActualHCRecDate,
-                                        dbo.computePODSubmitDeadline(
-                                            pod.U_DeliveryDateDTR,
-                                            ISNULL(T4.U_CDC,0)
-                                        ),
-                                        ISNULL(pod.U_HolidayOrWeekend, 0)
-                                    )
-                                ),
-                                dbo.computeOverdueDays(
-                                    pod.U_ActualHCRecDate,
-                                    dbo.computePODSubmitDeadline(
-                                        pod.U_DeliveryDateDTR,
-                                        ISNULL(T4.U_CDC,0)
-                                    ),
-                                    ISNULL(pod.U_HolidayOrWeekend, 0)
-                                )
-                            )
+                            (SELECT value FROM @InteluckPenaltyCalc WHERE id = T0.U_BookingId)
                         ELSE NULL
                     END
                 ELSE NULL
@@ -3059,12 +814,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_ClientSubOverdue') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            dbo.computeClientSubOverdue(
-                                pod.U_DeliveryDateDTR,
-                                pod.U_ClientReceivedDate,
-                                ISNULL(pod.U_WaivedDays, 0),
-                                CAST(ISNULL(T4.U_DCD,0) as int)
-                            )
+                            (SELECT value FROM @ClientSubOverdue WHERE id = T0.U_BookingId)
                         ELSE NULL
                     END
                 ELSE NULL
@@ -3073,14 +823,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_ClientPenaltyCalc') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            dbo.computeClientPenaltyCalc(
-                                dbo.computeClientSubOverdue(
-                                    pod.U_DeliveryDateDTR,
-                                    pod.U_ClientReceivedDate,
-                                    ISNULL(pod.U_WaivedDays, 0),
-                                    CAST(ISNULL(T4.U_DCD,0) as int)
-                                )
-                            )
+                            (SELECT value FROM @ClientPenaltyCalc WHERE id = T0.U_BookingId)
                         ELSE NULL
                     END
                 ELSE NULL
@@ -3509,10 +1252,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_GrossClientRatesTax') THEN
                 CASE
                     WHEN @TabName = 'PRICING' OR @TabName = 'BILLING' OR @TabName = 'SUMMARY' THEN 
-                        CASE
-                            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossClientRates, 0)
-                            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossClientRates, 0) / 1.12)
-                        END
+                        (SELECT value FROM @GrossClientRatesTax WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -3531,10 +1271,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_GrossTruckerRatesN') THEN
                 CASE
                     WHEN @TabName = 'TP' THEN
-                        CASE
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossTruckerRates, 0)
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossTruckerRates, 0) / 1.12)
-                        END
+                        (SELECT value FROM @GrossTruckerRatesTax WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -3558,10 +1295,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_GrossTruckerRatesTax') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'PRICING' THEN
-                        CASE
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN PRICING.U_GrossTruckerRates
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (PRICING.U_GrossTruckerRates / 1.12)
-                        END
+                        (SELECT value FROM @GrossTruckerRatesTax WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -3623,13 +1357,8 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_GrossProfitNet') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'PRICING' THEN
-                        (CASE
-                            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN PRICING.U_GrossClientRates
-                            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (PRICING.U_GrossClientRates / 1.12)
-                        END) - (CASE
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN PRICING.U_GrossTruckerRates
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (PRICING.U_GrossTruckerRates / 1.12)
-                        END)
+                        (SELECT value FROM @GrossClientRatesTax WHERE id = POD.U_BookingNumber) 
+                        - (SELECT value FROM @GrossTruckerRatesTax WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -3638,18 +1367,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalInitialClient') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'PRICING' THEN
-                        CASE
-                            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN 
-                                (ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0))
-                            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN 
-                                ((ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0)) / 1.12)
-                        END + CASE
-                            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossClientRates, 0)
-                            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossClientRates, 0) / 1.12)
-                        END + CASE
-                            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_Demurrage, 0)
-                            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_Demurrage, 0) / 1.12)
-                        END
+                        (SELECT value FROM @TotalInitialClient WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -3658,16 +1376,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalInitialTruckers') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                        CASE
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossTruckerRates, 0)
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossTruckerRates, 0) / 1.12)
-                        END + CASE
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_Demurrage2, 0)
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_Demurrage2, 0) / 1.12)
-                        END + CASE
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (ISNULL(PRICING.U_AddtlDrop2, 0) + ISNULL(PRICING.U_BoomTruck2, 0) + ISNULL(PRICING.U_Manpower2, 0) + ISNULL(PRICING.U_Backload2, 0))
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((ISNULL(PRICING.U_AddtlDrop2, 0) + ISNULL(PRICING.U_BoomTruck2, 0) + ISNULL(PRICING.U_Manpower2, 0) + ISNULL(PRICING.U_Backload2, 0)) / 1.12)
-                        END
+                        (SELECT value FROM @TotalInitialTruckers WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -3676,27 +1385,8 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalGrossProfit') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'PRICING' THEN
-                        (CASE
-                            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN 
-                                (ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0))
-                            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN 
-                                ((ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0)) / 1.12)
-                        END + CASE
-                            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossClientRates, 0)
-                            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossClientRates, 0) / 1.12)
-                        END + CASE
-                            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_Demurrage, 0)
-                            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_Demurrage, 0) / 1.12)
-                        END) - (CASE
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossTruckerRates, 0)
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossTruckerRates, 0) / 1.12)
-                        END + CASE
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_Demurrage2, 0)
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_Demurrage2, 0) / 1.12)
-                        END + CASE
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (ISNULL(PRICING.U_AddtlDrop2, 0) + ISNULL(PRICING.U_BoomTruck2, 0) + ISNULL(PRICING.U_Manpower2, 0) + ISNULL(PRICING.U_Backload2, 0))
-                            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((ISNULL(PRICING.U_AddtlDrop2, 0) + ISNULL(PRICING.U_BoomTruck2, 0) + ISNULL(PRICING.U_Manpower2, 0) + ISNULL(PRICING.U_Backload2, 0)) / 1.12)
-                        END)
+                        (SELECT value FROM @TotalInitialClient WHERE id = POD.U_BookingNumber) 
+                        - (SELECT value FROM @TotalInitialTruckers WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -3869,16 +1559,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_PODStatusPayment') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' THEN 
-                        dbo.computePODStatusPayment(
-                            dbo.computeOverdueDays(
-                                POD.U_ActualHCRecDate,
-                                dbo.computePODSubmitDeadline(
-                                    POD.U_DeliveryDateDTR,
-                                    ISNULL(client.U_CDC,0)
-                                ),
-                                ISNULL(POD.U_HolidayOrWeekend, 0)
-                            )
-                        )
+                        (SELECT value FROM @PODStatusPayment WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -3888,21 +1569,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalRecClients') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'BILLING' OR @TabName = 'PRICING' THEN
-                        (
-                            CASE
-                                WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossClientRates, 0)
-                                WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossClientRates, 0) / 1.12)
-                            END
-                        ) --BILLING.U_GrossInitialRate
-                        + ISNULL(PRICING.U_Demurrage, 0)
-                        + (ISNULL(PRICING.U_AddtlDrop,0) + 
-                        ISNULL(PRICING.U_BoomTruck,0) + 
-                        ISNULL(PRICING.U_Manpower,0) + 
-                        ISNULL(PRICING.U_Backload,0))
-                        + ISNULL(BILLING.U_ActualBilledRate, 0)
-                        + ISNULL(BILLING.U_RateAdjustments, 0)
-                        + ISNULL(BILLING.U_ActualDemurrage, 0)
-                        + ISNULL(BILLING.U_ActualAddCharges, 0)
+                        (SELECT value FROM @TotalRecClients WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -3957,8 +1624,7 @@ BEGIN
                         + ISNULL(TP.U_ActualCharges, 0) 
                         + ISNULL(TRY_PARSE(CAST(TP.U_BoomTruck2 AS nvarchar) AS FLOAT), 0) 
                         + ISNULL(TP.U_OtherCharges, 0) 
-                        - (ISNULL(TP.U_CAandDP,0) + ISNULL(TP.U_Interest,0) + ISNULL(TP.U_OtherDeductions,0) 
-                        + (ABS(ABS(ISNULL(TF.U_TotalSubPenalty,0)) - ABS(ISNULL(TF.U_TotalPenaltyWaived,0)))))
+                        - (SELECT value FROM @TOTALDEDUCTIONS WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -3997,8 +1663,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TOTALDEDUCTIONS') THEN
                 CASE
                     WHEN @TabName = 'TP' THEN
-                        ISNULL(TP.U_CAandDP,0) + ISNULL(TP.U_Interest,0) + ISNULL(TP.U_OtherDeductions,0) 
-                        + (ABS(ABS(ISNULL(TF.U_TotalSubPenalty,0)) - ABS(ISNULL(TF.U_TotalPenaltyWaived,0))))
+                        (SELECT value FROM @TOTALDEDUCTIONS WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -4011,11 +1676,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalAR') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'BILLING' OR @TabName = 'PRICING' THEN
-                        (SELECT
-                            SUM(L.PriceAfVAT)
-                        FROM OINV H
-                            LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
-                        WHERE H.CANCELED = 'N' AND L.ItemCode = POD.U_BookingNumber)
+                        (SELECT value FROM @TotalAR WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -4024,26 +1685,8 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_VarAR') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'BILLING' OR @TabName = 'PRICING' THEN
-                        ISNULL((SELECT
-                            SUM(L.PriceAfVAT)
-                        FROM OINV H
-                            LEFT JOIN INV1 L ON H.DocEntry = L.DocEntry
-                        WHERE H.CANCELED = 'N' AND L.ItemCode = POD.U_BookingNumber), 0) 
-                        - ((
-                            CASE
-                                WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossClientRates, 0)
-                                WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossClientRates, 0) / 1.12)
-                            END
-                        ) --BILLING.U_GrossInitialRate
-                        + ISNULL(PRICING.U_Demurrage, 0)
-                        + (ISNULL(PRICING.U_AddtlDrop,0) + 
-                        ISNULL(PRICING.U_BoomTruck,0) + 
-                        ISNULL(PRICING.U_Manpower,0) + 
-                        ISNULL(PRICING.U_Backload,0))
-                        + ISNULL(BILLING.U_ActualBilledRate, 0)
-                        + ISNULL(BILLING.U_RateAdjustments, 0)
-                        + ISNULL(BILLING.U_ActualDemurrage, 0)
-                        + ISNULL(BILLING.U_ActualAddCharges, 0))
+                        (SELECT value FROM @TotalAR WHERE id = POD.U_BookingNumber) 
+                        - (SELECT value FROM @TotalRecClients WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -4069,10 +1712,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_PODSubmitDeadline') THEN
                 CASE
                     WHEN @TabName = 'POD' THEN 
-                        dbo.computePODSubmitDeadline(
-                            POD.U_DeliveryDateDTR,
-                            ISNULL(client.U_CDC,0)
-                        )
+                        (SELECT value FROM @PODSubmitDeadline WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -4081,14 +1721,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_OverdueDays') THEN
                 CASE
                     WHEN @TabName = 'POD' THEN 
-                        dbo.computeOverdueDays(
-                            POD.U_ActualHCRecDate,
-                            dbo.computePODSubmitDeadline(
-                                POD.U_DeliveryDateDTR,
-                                ISNULL(client.U_CDC,0)
-                            ),
-                            ISNULL(POD.U_HolidayOrWeekend, 0)
-                        )
+                        (SELECT value FROM @OverdueDays WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -4116,61 +1749,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalSubPenalties') THEN
                 CASE
                     WHEN @TabName = 'POD' THEN 
-                        dbo.computeTotalSubPenalties(
-                            dbo.computeClientPenaltyCalc(
-                                dbo.computeClientSubOverdue(
-                                    POD.U_DeliveryDateDTR,
-                                    POD.U_ClientReceivedDate,
-                                    ISNULL(POD.U_WaivedDays, 0),
-                                    CAST(ISNULL(client.U_DCD,0) as int)
-                                )
-                            ),
-                            dbo.computeInteluckPenaltyCalc(
-                                dbo.computePODStatusPayment(
-                                    dbo.computeOverdueDays(
-                                        POD.U_ActualHCRecDate,
-                                        dbo.computePODSubmitDeadline(
-                                            POD.U_DeliveryDateDTR,
-                                            ISNULL(client.U_CDC,0)
-                                        ),
-                                        ISNULL(POD.U_HolidayOrWeekend, 0)
-                                    )
-                                ),
-                                dbo.computeOverdueDays(
-                                    POD.U_ActualHCRecDate,
-                                    dbo.computePODSubmitDeadline(
-                                        POD.U_DeliveryDateDTR,
-                                        ISNULL(client.U_CDC,0)
-                                    ),
-                                    ISNULL(POD.U_HolidayOrWeekend, 0)
-                                )
-                            ),
-                            dbo.computeLostPenaltyCalc(
-                                dbo.computePODStatusPayment(
-                                    dbo.computeOverdueDays(
-                                        POD.U_ActualHCRecDate,
-                                        dbo.computePODSubmitDeadline(
-                                            POD.U_DeliveryDateDTR,
-                                            ISNULL(client.U_CDC,0)
-                                        ),
-                                        ISNULL(POD.U_HolidayOrWeekend, 0)
-                                    )
-                                ),
-                                POD.U_InitialHCRecDate,
-                                POD.U_DeliveryDateDTR,
-                                CASE
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossTruckerRates, 0)
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossTruckerRates, 0) / 1.12)
-                                END + CASE
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_Demurrage2, 0)
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_Demurrage2, 0) / 1.12)
-                                END + CASE
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (ISNULL(PRICING.U_AddtlDrop2, 0) + ISNULL(PRICING.U_BoomTruck2, 0) + ISNULL(PRICING.U_Manpower2, 0) + ISNULL(PRICING.U_Backload2, 0))
-                                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((ISNULL(PRICING.U_AddtlDrop2, 0) + ISNULL(PRICING.U_BoomTruck2, 0) + ISNULL(PRICING.U_Manpower2, 0) + ISNULL(PRICING.U_Backload2, 0)) / 1.12)
-                                END
-                            ),
-                            ISNULL(POD.U_PenaltiesManual,0)
-                        )
+                        (SELECT value FROM @TotalSubPenalties WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -4187,7 +1766,7 @@ BEGIN
                 END
             ELSE NULL
         END AS U_TotalPenaltyWaived,
-        ABS(ISNULL(TF.U_TotalSubPenalty, 0) - ISNULL(TF.U_TotalPenaltyWaived, 0)) AS U_TotalPenalty,
+        (SELECT value FROM @TotalPenalty WHERE id = POD.U_BookingNumber) AS U_TotalPenalty,
         ISNULL(TP.U_TotalPayableRec, 0) AS U_TotalPayableRec,
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_APDocNum') THEN
