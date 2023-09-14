@@ -4324,7 +4324,10 @@ BEGIN
                     WHEN @TabName = 'TP' THEN
                         SUBSTRING((
                             SELECT
-                                CONCAT(', ', CAST(T0.TrsfrDate AS DATE)) AS [text()]
+                                CONCAT(CASE WHEN T0.TrsfrDate IS NOT NULL THEN CONCAT(', ', CAST(T0.TrsfrDate AS DATE))
+                                ELSE '' END,
+                                CASE WHEN T2.DueDate IS NOT NULL THEN CONCAT(', ', CAST(T2.DueDate AS DATE))
+                                ELSE '' END) AS [text()]
                             FROM OVPM T0 WITH (NOLOCK)
                             INNER JOIN VPM2 T1 ON T1.DocNum = T0.DocEntry
                             LEFT JOIN VPM1 T2 ON T1.DocNum = T2.DocNum
@@ -4342,7 +4345,10 @@ BEGIN
                     WHEN @TabName = 'TP' THEN
                         SUBSTRING((
                             SELECT
-                                CONCAT(', ', T0.TrsfrRef) AS [text()]
+                                CONCAT(CASE WHEN T0.TrsfrRef IS NOT NULL THEN CONCAT(', ', T0.TrsfrRef)
+                                ELSE '' END,
+                                CASE WHEN T2.CheckNum IS NOT NULL THEN CONCAT(', ', T2.CheckNum)
+                                ELSE '' END) AS [text()]
                             FROM OVPM T0 WITH (NOLOCK)
                             INNER JOIN VPM2 T1 ON T1.DocNum = T0.DocEntry
                             LEFT JOIN VPM1 T2 ON T1.DocNum = T2.DocNum
