@@ -5,7 +5,7 @@ SELECT
     POD.U_BookingNumber,
     CAST(SUBSTRING(
             (
-                SELECT CONCAT(', ', header.DocNum)  AS [text()]
+                SELECT DISTINCT CONCAT(', ', header.DocNum)  AS [text()]
     FROM PCH1 line WITH (NOLOCK)
         LEFT JOIN (SELECT DocNum, DocEntry, CANCELED, PaidSum, U_PVNo FROM OPCH WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
     WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = T0.U_BookingId
@@ -14,7 +14,7 @@ SELECT
             ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(max)) AS U_DocNum,
     CAST(SUBSTRING(
             (
-                SELECT CONCAT(', ', header.DocNum)  AS [text()]
+                SELECT DISTINCT CONCAT(', ', header.DocNum)  AS [text()]
     FROM PCH1 line WITH (NOLOCK)
         LEFT JOIN (SELECT DocNum, DocEntry, CANCELED, PaidSum, U_PVNo FROM OPCH WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
     WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = T0.U_BookingId
@@ -53,7 +53,10 @@ SET U_DocNum = TMP.U_DocNum,
                 ),
     U_ActualPaymentDate = SUBSTRING((
                     SELECT
-                        CONCAT(', ', CAST(T0.TrsfrDate AS DATE)) AS [text()]
+                        CONCAT(CASE WHEN T0.TrsfrDate IS NOT NULL THEN CONCAT(', ', CAST(T0.TrsfrDate AS DATE))
+                        ELSE '' END,
+                        CASE WHEN T2.DueDate IS NOT NULL THEN CONCAT(', ', CAST(T2.DueDate AS DATE))
+                        ELSE '' END) AS [text()]
                     FROM OVPM T0 WITH (NOLOCK)
                     INNER JOIN VPM2 T1 ON T1.DocNum = T0.DocEntry
                     LEFT JOIN VPM1 T2 ON T1.DocNum = T2.DocNum
@@ -63,7 +66,10 @@ SET U_DocNum = TMP.U_DocNum,
                 ),
     U_PaymentReference = SUBSTRING((
                     SELECT
-                        CONCAT(', ', T0.TrsfrRef) AS [text()]
+                        CONCAT(CASE WHEN T0.TrsfrRef IS NOT NULL THEN CONCAT(', ', T0.TrsfrRef)
+                        ELSE '' END,
+                        CASE WHEN T2.CheckNum IS NOT NULL THEN CONCAT(', ', T2.CheckNum)
+                        ELSE '' END) AS [text()]
                     FROM OVPM T0 WITH (NOLOCK)
                     INNER JOIN VPM2 T1 ON T1.DocNum = T0.DocEntry
                     LEFT JOIN VPM1 T2 ON T1.DocNum = T2.DocNum
