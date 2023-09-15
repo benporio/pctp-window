@@ -225,12 +225,16 @@ BEGIN
     INSERT INTO @ClientSubOverdue
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        dbo.computeClientSubOverdue(
-            POD.U_DeliveryDateDTR,
-            POD.U_ClientReceivedDate,
-            ISNULL(POD.U_WaivedDays, 0),
-            CAST(ISNULL(client.U_DCD,0) as int)
-        ) as value
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                dbo.computeClientSubOverdue(
+                    POD.U_DeliveryDateDTR,
+                    POD.U_ClientReceivedDate,
+                    ISNULL(POD.U_WaivedDays, 0),
+                    CAST(ISNULL(client.U_DCD,0) as int)
+                )
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     LEFT JOIN (SELECT CardCode, U_DCD FROM OCRD WITH(NOLOCK)) client ON POD.U_SAPClient = client.CardCode
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
@@ -239,9 +243,13 @@ BEGIN
     INSERT INTO @ClientPenaltyCalc
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        dbo.computeClientPenaltyCalc(
-            (SELECT value FROM @ClientSubOverdue WHERE id = POD.U_BookingNumber)
-        ) as value
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                dbo.computeClientPenaltyCalc(
+                    (SELECT value FROM @ClientSubOverdue WHERE id = POD.U_BookingNumber)
+                )
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
@@ -249,10 +257,14 @@ BEGIN
     INSERT INTO @PODSubmitDeadline
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        dbo.computePODSubmitDeadline(
-            POD.U_DeliveryDateDTR,
-            ISNULL(client.U_CDC,0)
-        ) as value
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                dbo.computePODSubmitDeadline(
+                    POD.U_DeliveryDateDTR,
+                    ISNULL(client.U_CDC,0)
+                )
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     LEFT JOIN (SELECT CardCode, U_CDC FROM OCRD WITH(NOLOCK)) client ON POD.U_SAPClient = client.CardCode
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
@@ -261,11 +273,15 @@ BEGIN
     INSERT INTO @OverdueDays
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        dbo.computeOverdueDays(
-            POD.U_ActualHCRecDate,
-            (SELECT value FROM @PODSubmitDeadline WHERE id = POD.U_BookingNumber),
-            ISNULL(POD.U_HolidayOrWeekend, 0)
-        ) as value
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                dbo.computeOverdueDays(
+                    POD.U_ActualHCRecDate,
+                    (SELECT value FROM @PODSubmitDeadline WHERE id = POD.U_BookingNumber),
+                    ISNULL(POD.U_HolidayOrWeekend, 0)
+                )
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
@@ -273,9 +289,13 @@ BEGIN
     INSERT INTO @PODStatusPayment
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        dbo.computePODStatusPayment(
-            (SELECT value FROM @OverdueDays WHERE id = POD.U_BookingNumber)
-        ) as value
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                dbo.computePODStatusPayment(
+                    (SELECT value FROM @OverdueDays WHERE id = POD.U_BookingNumber)
+                )
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
@@ -283,10 +303,14 @@ BEGIN
     INSERT INTO @InteluckPenaltyCalc
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        dbo.computeInteluckPenaltyCalc(
-            (SELECT value FROM @PODStatusPayment WHERE id = POD.U_BookingNumber),
-            (SELECT value FROM @OverdueDays WHERE id = POD.U_BookingNumber)
-        ) as value
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                dbo.computeInteluckPenaltyCalc(
+                    (SELECT value FROM @PODStatusPayment WHERE id = POD.U_BookingNumber),
+                    (SELECT value FROM @OverdueDays WHERE id = POD.U_BookingNumber)
+                )
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
@@ -295,8 +319,12 @@ BEGIN
     SELECT DISTINCT
         POD.U_BookingNumber as id,
         CASE
-            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN PRICING.U_GrossClientRates
-            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (PRICING.U_GrossClientRates / 1.12)
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'BILLING' OR @TabName = 'PRICING' THEN
+                CASE
+                    WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN PRICING.U_GrossClientRates
+                    WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (PRICING.U_GrossClientRates / 1.12)
+                END 
+            ELSE NULL
         END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     LEFT JOIN (
@@ -312,8 +340,12 @@ BEGIN
     SELECT DISTINCT
         POD.U_BookingNumber as id,
         CASE
-            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN PRICING.U_GrossTruckerRates
-            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (PRICING.U_GrossTruckerRates / 1.12)
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                CASE
+                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN PRICING.U_GrossTruckerRates
+                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (PRICING.U_GrossTruckerRates / 1.12)
+                END
+            ELSE NULL
         END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     LEFT JOIN (
@@ -329,15 +361,19 @@ BEGIN
     SELECT DISTINCT
         POD.U_BookingNumber as id,
         CASE
-            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN 
-                (ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0))
-            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN 
-                ((ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0)) / 1.12)
-        END 
-        + (SELECT value FROM @GrossClientRatesTax WHERE id = POD.U_BookingNumber)
-        + CASE
-            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_Demurrage, 0)
-            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_Demurrage, 0) / 1.12)
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'PRICING' THEN
+                CASE
+                    WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN 
+                        (ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0))
+                    WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN 
+                        ((ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0)) / 1.12)
+                END 
+                + (SELECT value FROM @GrossClientRatesTax WHERE id = POD.U_BookingNumber)
+                + CASE
+                    WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_Demurrage, 0)
+                    WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_Demurrage, 0) / 1.12)
+                END
+            ELSE NULL
         END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     LEFT JOIN (
@@ -354,13 +390,17 @@ BEGIN
     INSERT INTO @TotalInitialTruckers
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        (SELECT value FROM @GrossTruckerRatesTax WHERE id = POD.U_BookingNumber) 
-        + CASE
-            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_Demurrage2, 0)
-            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_Demurrage2, 0) / 1.12)
-        END + CASE
-            WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (ISNULL(PRICING.U_AddtlDrop2, 0) + ISNULL(PRICING.U_BoomTruck2, 0) + ISNULL(PRICING.U_Manpower2, 0) + ISNULL(PRICING.U_Backload2, 0))
-            WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((ISNULL(PRICING.U_AddtlDrop2, 0) + ISNULL(PRICING.U_BoomTruck2, 0) + ISNULL(PRICING.U_Manpower2, 0) + ISNULL(PRICING.U_Backload2, 0)) / 1.12)
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                (SELECT value FROM @GrossTruckerRatesTax WHERE id = POD.U_BookingNumber) 
+                + CASE
+                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_Demurrage2, 0)
+                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_Demurrage2, 0) / 1.12)
+                END + CASE
+                    WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN (ISNULL(PRICING.U_AddtlDrop2, 0) + ISNULL(PRICING.U_BoomTruck2, 0) + ISNULL(PRICING.U_Manpower2, 0) + ISNULL(PRICING.U_Backload2, 0))
+                    WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN ((ISNULL(PRICING.U_AddtlDrop2, 0) + ISNULL(PRICING.U_BoomTruck2, 0) + ISNULL(PRICING.U_Manpower2, 0) + ISNULL(PRICING.U_Backload2, 0)) / 1.12)
+                END
+            ELSE NULL
         END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     LEFT JOIN (
@@ -377,12 +417,16 @@ BEGIN
     INSERT INTO @LostPenaltyCalc
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        dbo.computeLostPenaltyCalc(
-            (SELECT value FROM @PODStatusPayment WHERE id = POD.U_BookingNumber),
-            POD.U_InitialHCRecDate,
-            POD.U_DeliveryDateDTR,
-            (SELECT value FROM @TotalInitialTruckers WHERE id = POD.U_BookingNumber)
-        ) as value
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                dbo.computeLostPenaltyCalc(
+                    (SELECT value FROM @PODStatusPayment WHERE id = POD.U_BookingNumber),
+                    POD.U_InitialHCRecDate,
+                    POD.U_DeliveryDateDTR,
+                    (SELECT value FROM @TotalInitialTruckers WHERE id = POD.U_BookingNumber)
+                )
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     LEFT JOIN (
         SELECT 
@@ -399,12 +443,16 @@ BEGIN
     INSERT INTO @TotalSubPenalties
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        dbo.computeTotalSubPenalties(
-            (SELECT value FROM @ClientPenaltyCalc WHERE id = POD.U_BookingNumber),
-            (SELECT value FROM @InteluckPenaltyCalc WHERE id = POD.U_BookingNumber),
-            (SELECT value FROM @LostPenaltyCalc WHERE id = POD.U_BookingNumber),
-            ISNULL(POD.U_PenaltiesManual,0)
-        ) as value
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                dbo.computeTotalSubPenalties(
+                    (SELECT value FROM @ClientPenaltyCalc WHERE id = POD.U_BookingNumber),
+                    (SELECT value FROM @InteluckPenaltyCalc WHERE id = POD.U_BookingNumber),
+                    (SELECT value FROM @LostPenaltyCalc WHERE id = POD.U_BookingNumber),
+                    ISNULL(POD.U_PenaltiesManual,0)
+                )
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
@@ -412,10 +460,14 @@ BEGIN
     INSERT INTO @TotalPenaltyWaived
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        dbo.computeTotalPenaltyWaived(
-            (SELECT value FROM @TotalSubPenalties WHERE id = POD.U_BookingNumber),
-            ISNULL(POD.U_PercPenaltyCharge,0)
-        ) as value
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                dbo.computeTotalPenaltyWaived(
+                    (SELECT value FROM @TotalSubPenalties WHERE id = POD.U_BookingNumber),
+                    ISNULL(POD.U_PercPenaltyCharge,0)
+                )
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
@@ -423,13 +475,17 @@ BEGIN
     INSERT INTO @TotalAR
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        ISNULL((
-            SELECT
-                SUM(L.PriceAfVAT)
-            FROM OINV H WITH(NOLOCK)
-            LEFT JOIN (SELECT DocEntry, ItemCode, PriceAfVAT FROM INV1 WITH(NOLOCK)) L ON H.DocEntry = L.DocEntry
-            WHERE H.CANCELED = 'N' AND L.ItemCode = POD.U_BookingNumber
-        ), 0) as value
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'BILLING' OR @TabName = 'PRICING' THEN
+                ISNULL((
+                    SELECT
+                        SUM(L.PriceAfVAT)
+                    FROM OINV H WITH(NOLOCK)
+                    LEFT JOIN (SELECT DocEntry, ItemCode, PriceAfVAT FROM INV1 WITH(NOLOCK)) L ON H.DocEntry = L.DocEntry
+                    WHERE H.CANCELED = 'N' AND L.ItemCode = POD.U_BookingNumber
+                ), 0)
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
@@ -437,21 +493,25 @@ BEGIN
     INSERT INTO @TotalRecClients
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        (
-            CASE
-                WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossClientRates, 0)
-                WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossClientRates, 0) / 1.12)
-            END
-        ) --BILLING.U_GrossInitialRate
-        + ISNULL(PRICING.U_Demurrage, 0)
-        + (ISNULL(PRICING.U_AddtlDrop,0) + 
-        ISNULL(PRICING.U_BoomTruck,0) + 
-        ISNULL(PRICING.U_Manpower,0) + 
-        ISNULL(PRICING.U_Backload,0))
-        + ISNULL(BILLING.U_ActualBilledRate, 0)
-        + ISNULL(BILLING.U_RateAdjustments, 0)
-        + ISNULL(BILLING.U_ActualDemurrage, 0)
-        + ISNULL(BILLING.U_ActualAddCharges, 0) as value
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'BILLING' OR @TabName = 'PRICING' THEN
+                (
+                    CASE
+                        WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossClientRates, 0)
+                        WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossClientRates, 0) / 1.12)
+                    END
+                ) --BILLING.U_GrossInitialRate
+                + ISNULL(PRICING.U_Demurrage, 0)
+                + (ISNULL(PRICING.U_AddtlDrop,0) + 
+                ISNULL(PRICING.U_BoomTruck,0) + 
+                ISNULL(PRICING.U_Manpower,0) + 
+                ISNULL(PRICING.U_Backload,0))
+                + ISNULL(BILLING.U_ActualBilledRate, 0)
+                + ISNULL(BILLING.U_RateAdjustments, 0)
+                + ISNULL(BILLING.U_ActualDemurrage, 0)
+                + ISNULL(BILLING.U_ActualAddCharges, 0)
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     LEFT JOIN (
         SELECT 
@@ -473,11 +533,15 @@ BEGIN
     INSERT INTO @TOTALDEDUCTIONS
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        ISNULL(TP.U_CAandDP,0) + ISNULL(TP.U_Interest,0) + ISNULL(TP.U_OtherDeductions,0) 
-        + (ABS(
-            ABS(ISNULL((SELECT value FROM @TotalSubPenalties WHERE id = POD.U_BookingNumber),0)) 
-            - ABS(ISNULL((SELECT value FROM @TotalPenaltyWaived WHERE id = POD.U_BookingNumber),0))
-        )) as value
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                ISNULL(TP.U_CAandDP,0) + ISNULL(TP.U_Interest,0) + ISNULL(TP.U_OtherDeductions,0) 
+                + (ABS(
+                    ABS(ISNULL((SELECT value FROM @TotalSubPenalties WHERE id = POD.U_BookingNumber),0)) 
+                    - ABS(ISNULL((SELECT value FROM @TotalPenaltyWaived WHERE id = POD.U_BookingNumber),0))
+                ))
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     LEFT JOIN (
         SELECT 
@@ -491,14 +555,18 @@ BEGIN
     INSERT INTO @Paid
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        CAST(SUBSTRING((
-                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
-        FROM PCH1 line WITH (NOLOCK)
-            LEFT JOIN (SELECT DocNum, DocEntry, CANCELED, PaidSum, U_PVNo FROM OPCH WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
-        WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = POD.U_BookingNumber
-            or REPLACE(REPLACE(RTRIM(LTRIM(TP.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-        FOR XML PATH (''), TYPE
-                ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(max)) as value
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                CAST(SUBSTRING((
+                            SELECT CONCAT(', ', header.DocNum)  AS [text()]
+                FROM PCH1 line WITH (NOLOCK)
+                    LEFT JOIN (SELECT DocNum, DocEntry, CANCELED, PaidSum, U_PVNo FROM OPCH WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
+                WHERE header.CANCELED = 'N' AND header.PaidSum > 0 AND (line.ItemCode = POD.U_BookingNumber
+                    or REPLACE(REPLACE(RTRIM(LTRIM(TP.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
+                FOR XML PATH (''), TYPE
+                        ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(max))
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     LEFT JOIN (
         SELECT 
@@ -511,14 +579,18 @@ BEGIN
     INSERT INTO @DocNum
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        CAST(SUBSTRING((
-                    SELECT CONCAT(', ', header.DocNum)  AS [text()]
-        FROM PCH1 line WITH (NOLOCK)
-            LEFT JOIN (SELECT DocNum, DocEntry, CANCELED, PaidSum, U_PVNo FROM OPCH WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
-        WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = POD.U_BookingNumber
-            or REPLACE(REPLACE(RTRIM(LTRIM(TP.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
-        FOR XML PATH (''), TYPE
-                ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(max)) as value
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                CAST(SUBSTRING((
+                            SELECT CONCAT(', ', header.DocNum)  AS [text()]
+                FROM PCH1 line WITH (NOLOCK)
+                    LEFT JOIN (SELECT DocNum, DocEntry, CANCELED, PaidSum, U_PVNo FROM OPCH WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
+                WHERE header.CANCELED = 'N' AND header.PaidSum = 0 AND (line.ItemCode = POD.U_BookingNumber
+                    or REPLACE(REPLACE(RTRIM(LTRIM(TP.U_PVNo)), ' ', ''), ',', '') LIKE '%' + RTRIM(LTRIM(header.U_PVNo)) + '%')
+                FOR XML PATH (''), TYPE
+                        ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(max))
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     LEFT JOIN (
         SELECT 
@@ -531,8 +603,12 @@ BEGIN
     INSERT INTO @TotalPenalty
     SELECT DISTINCT
         POD.U_BookingNumber as id,
-        ABS((SELECT value FROM @TotalSubPenalties WHERE id = POD.U_BookingNumber)) 
-        - (SELECT value FROM @TotalPenaltyWaived WHERE id = POD.U_BookingNumber) as value
+        CASE
+            WHEN @TabName = 'TP' THEN
+                ABS((SELECT value FROM @TotalSubPenalties WHERE id = POD.U_BookingNumber)) 
+                - (SELECT value FROM @TotalPenaltyWaived WHERE id = POD.U_BookingNumber)
+            ELSE NULL
+        END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     -- LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) client ON POD.U_SAPClient = client.CardCode
     -- LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) trucker ON POD.U_SAPTrucker = trucker.CardCode
@@ -542,13 +618,17 @@ BEGIN
     INSERT INTO @1stPV
     SELECT DISTINCT 
         POD.U_BookingNumber as id,
-        ISNULL((
-          ISNULL(TRY_PARSE(ratessub.U_Amount AS FLOAT), 0)
-          + ISNULL(TP.U_RateAdjustments, 0) 
-          + ISNULL(TRY_PARSE(ratessub.U_AddlAmount AS FLOAT), 0)
-        ) 
-        - 
-        (SELECT value FROM @TotalPenalty WHERE id = POD.U_BookingNumber), 0) as value 
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                ISNULL((
+                ISNULL(TRY_PARSE(ratessub.U_Amount AS FLOAT), 0)
+                + ISNULL(TP.U_RateAdjustments, 0) 
+                + ISNULL(TRY_PARSE(ratessub.U_AddlAmount AS FLOAT), 0)
+                ) 
+                - 
+                (SELECT value FROM @TotalPenalty WHERE id = POD.U_BookingNumber), 0)
+            ELSE NULL
+        END as value 
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK) 
     INNER JOIN (
         SELECT
@@ -564,64 +644,68 @@ BEGIN
     INSERT INTO @2ndPV
     SELECT DISTINCT 
         POD.U_BookingNumber as id,
-        ISNULL((
-          CASE 
-            WHEN T5.U_Rates LIKE '%U_GrossTruckerRates%' THEN 
-              CASE 
-                WHEN ISNULL(trucker.VatStatus, 'Y') = 'Y' THEN PRICING.U_GrossTruckerRates 
-                WHEN ISNULL(trucker.VatStatus, 'Y') = 'N' THEN (PRICING.U_GrossTruckerRates / 1.12) 
-              END 
-            ELSE 0.00 
-          END 
-          + 
-          CASE 
-            WHEN T5.U_Rates LIKE '%U_ActualRates%' THEN ISNULL(NULLIF(CAST(TP.U_ActualRates AS FLOAT), ''), 0) 
-            ELSE 0.00 
-          END 
-          + 
-          CASE 
-            WHEN T5.U_Rates LIKE '%U_RateAdjustments%' THEN ISNULL(NULLIF(CAST(TP.U_RateAdjustments AS FLOAT), ''), 0) 
-            ELSE 0.00 
-          END 
-          + 
-          CASE 
-            WHEN T5.U_Rates LIKE '%U_DemurrageN%' THEN 
-              CASE 
-                WHEN ISNULL(trucker.VatStatus, 'Y') = 'Y' THEN PRICING.U_Demurrage2 
-                WHEN ISNULL(trucker.VatStatus, 'Y') = 'N' THEN (PRICING.U_Demurrage2 / 1.12) 
-              END 
-            ELSE 0.00 
-          END 
-          + 
-          CASE 
-            WHEN T5.U_Rates LIKE '%U_totalAddtlCharges2%' THEN ISNULL(NULLIF(CAST(TP.U_ActualCharges AS FLOAT), ''), 0) 
-            ELSE 0.00 
-          END 
-          + 
-          CASE 
-            WHEN T5.U_Rates LIKE '%U_ActualDemurrage%' THEN ISNULL(NULLIF(CAST(TP.U_ActualDemurrage AS FLOAT), ''), 0) 
-            ELSE 0.00 
-          END 
-          + 
-          CASE 
-            WHEN T5.U_Rates LIKE '%U_ActualCharges%' THEN ISNULL(NULLIF(CAST(TP.U_ActualCharges AS FLOAT), ''), 0) 
-            ELSE 0.00 
-          END 
-          + 
-          CASE 
-            WHEN T5.U_Rates LIKE '%U_BoomTruck2%' THEN ISNULL(NULLIF(CAST(TP.U_BoomTruck2 AS FLOAT), ''), 0) 
-            ELSE 0.00 
-          END 
-          + 
-          CASE 
-            WHEN T5.U_Rates LIKE '%U_OtherCharges%' THEN ISNULL(NULLIF(CAST(TP.U_OtherCharges AS FLOAT), ''), 0) 
-            ELSE 0.00 
-          END
-        ) 
-        - 
-        ISNULL(TP.U_OtherDeductions, 0) 
-        + 
-        ABS((SELECT value FROM @TotalPenaltyWaived WHERE id = POD.U_BookingNumber)), 0) as value 
+        CASE
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+                ISNULL((
+                CASE 
+                    WHEN T5.U_Rates LIKE '%U_GrossTruckerRates%' THEN 
+                    CASE 
+                        WHEN ISNULL(trucker.VatStatus, 'Y') = 'Y' THEN PRICING.U_GrossTruckerRates 
+                        WHEN ISNULL(trucker.VatStatus, 'Y') = 'N' THEN (PRICING.U_GrossTruckerRates / 1.12) 
+                    END 
+                    ELSE 0.00 
+                END 
+                + 
+                CASE 
+                    WHEN T5.U_Rates LIKE '%U_ActualRates%' THEN ISNULL(NULLIF(CAST(TP.U_ActualRates AS FLOAT), ''), 0) 
+                    ELSE 0.00 
+                END 
+                + 
+                CASE 
+                    WHEN T5.U_Rates LIKE '%U_RateAdjustments%' THEN ISNULL(NULLIF(CAST(TP.U_RateAdjustments AS FLOAT), ''), 0) 
+                    ELSE 0.00 
+                END 
+                + 
+                CASE 
+                    WHEN T5.U_Rates LIKE '%U_DemurrageN%' THEN 
+                    CASE 
+                        WHEN ISNULL(trucker.VatStatus, 'Y') = 'Y' THEN PRICING.U_Demurrage2 
+                        WHEN ISNULL(trucker.VatStatus, 'Y') = 'N' THEN (PRICING.U_Demurrage2 / 1.12) 
+                    END 
+                    ELSE 0.00 
+                END 
+                + 
+                CASE 
+                    WHEN T5.U_Rates LIKE '%U_totalAddtlCharges2%' THEN ISNULL(NULLIF(CAST(TP.U_ActualCharges AS FLOAT), ''), 0) 
+                    ELSE 0.00 
+                END 
+                + 
+                CASE 
+                    WHEN T5.U_Rates LIKE '%U_ActualDemurrage%' THEN ISNULL(NULLIF(CAST(TP.U_ActualDemurrage AS FLOAT), ''), 0) 
+                    ELSE 0.00 
+                END 
+                + 
+                CASE 
+                    WHEN T5.U_Rates LIKE '%U_ActualCharges%' THEN ISNULL(NULLIF(CAST(TP.U_ActualCharges AS FLOAT), ''), 0) 
+                    ELSE 0.00 
+                END 
+                + 
+                CASE 
+                    WHEN T5.U_Rates LIKE '%U_BoomTruck2%' THEN ISNULL(NULLIF(CAST(TP.U_BoomTruck2 AS FLOAT), ''), 0) 
+                    ELSE 0.00 
+                END 
+                + 
+                CASE 
+                    WHEN T5.U_Rates LIKE '%U_OtherCharges%' THEN ISNULL(NULLIF(CAST(TP.U_OtherCharges AS FLOAT), ''), 0) 
+                    ELSE 0.00 
+                END
+                ) 
+                - 
+                ISNULL(TP.U_OtherDeductions, 0) 
+                + 
+                ABS((SELECT value FROM @TotalPenaltyWaived WHERE id = POD.U_BookingNumber)), 0)
+            ELSE NULL
+        END as value 
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK) 
     INNER JOIN (
         SELECT
@@ -645,34 +729,38 @@ BEGIN
     SELECT DISTINCT
         POD.U_BookingNumber as id,
         CASE
-            WHEN (
-                (SELECT value FROM @DocNum WHERE id = POD.U_BookingNumber) LIKE '%[0-9]%'
-                OR (SELECT value FROM @Paid WHERE id = POD.U_BookingNumber) LIKE '%[0-9]%'
-            ) THEN
-                -- Either 1 Paid only or 1 Unpaid only, use @1stPV, otherwise @2ndPV
+            WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
                 CASE
                     WHEN (
-                        (
-                            CHARINDEX(',', TP.U_PVNo) = 0
-                            OR
-                            (
-                                (SELECT value FROM @DocNum WHERE id = POD.U_BookingNumber) LIKE '%[0-9]%'
-                                AND CHARINDEX(',', (SELECT value FROM @DocNum WHERE id = POD.U_BookingNumber)) = 0
-                                AND (SELECT value FROM @Paid WHERE id = POD.U_BookingNumber) IS NULL
-                            )
-                            OR 
-                            (
-                                (SELECT value FROM @Paid WHERE id = POD.U_BookingNumber) LIKE '%[0-9]%'
-                                AND CHARINDEX(',', (SELECT value FROM @Paid WHERE id = POD.U_BookingNumber)) = 0
-                                AND (SELECT value FROM @DocNum WHERE id = POD.U_BookingNumber) IS NULL
-                            )
-                        )
-                    ) THEN 
-                        (SELECT value FROM @1stPV WHERE id = POD.U_BookingNumber)
-                    ELSE 
-                        (SELECT value FROM @2ndPV WHERE id = POD.U_BookingNumber) + (SELECT value FROM @1stPV WHERE id = POD.U_BookingNumber)
+                        (SELECT value FROM @DocNum WHERE id = POD.U_BookingNumber) LIKE '%[0-9]%'
+                        OR (SELECT value FROM @Paid WHERE id = POD.U_BookingNumber) LIKE '%[0-9]%'
+                    ) THEN
+                        -- Either 1 Paid only or 1 Unpaid only, use @1stPV, otherwise @2ndPV
+                        CASE
+                            WHEN (
+                                (
+                                    CHARINDEX(',', TP.U_PVNo) = 0
+                                    OR
+                                    (
+                                        (SELECT value FROM @DocNum WHERE id = POD.U_BookingNumber) LIKE '%[0-9]%'
+                                        AND CHARINDEX(',', (SELECT value FROM @DocNum WHERE id = POD.U_BookingNumber)) = 0
+                                        AND (SELECT value FROM @Paid WHERE id = POD.U_BookingNumber) IS NULL
+                                    )
+                                    OR 
+                                    (
+                                        (SELECT value FROM @Paid WHERE id = POD.U_BookingNumber) LIKE '%[0-9]%'
+                                        AND CHARINDEX(',', (SELECT value FROM @Paid WHERE id = POD.U_BookingNumber)) = 0
+                                        AND (SELECT value FROM @DocNum WHERE id = POD.U_BookingNumber) IS NULL
+                                    )
+                                )
+                            ) THEN 
+                                (SELECT value FROM @1stPV WHERE id = POD.U_BookingNumber)
+                            ELSE 
+                                (SELECT value FROM @2ndPV WHERE id = POD.U_BookingNumber) + (SELECT value FROM @1stPV WHERE id = POD.U_BookingNumber)
+                        END
+                    ELSE 0.00
                 END
-            ELSE 0.00
+            ELSE NULL
         END as value
     FROM [dbo].[@PCTP_POD] POD WITH(NOLOCK)
     LEFT JOIN (
