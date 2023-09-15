@@ -319,7 +319,7 @@ BEGIN
     ) POD
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
-    DECLARE @InteluckPenaltyCalc TABLE(id nvarchar(100), value int);
+    DECLARE @InteluckPenaltyCalc TABLE(id nvarchar(100), value float);
     INSERT INTO @InteluckPenaltyCalc
     SELECT DISTINCT
         POD.U_BookingNumber as id,
@@ -338,7 +338,7 @@ BEGIN
     ) POD
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
-    DECLARE @GrossClientRatesTax TABLE(id nvarchar(100), value int);
+    DECLARE @GrossClientRatesTax TABLE(id nvarchar(100), value float);
     INSERT INTO @GrossClientRatesTax
     SELECT DISTINCT
         POD.U_BookingNumber as id,
@@ -363,7 +363,7 @@ BEGIN
     LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) client ON POD.U_SAPClient = client.CardCode
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
-    DECLARE @GrossTruckerRatesTax TABLE(id nvarchar(100), value int);
+    DECLARE @GrossTruckerRatesTax TABLE(id nvarchar(100), value float);
     INSERT INTO @GrossTruckerRatesTax
     SELECT DISTINCT
         POD.U_BookingNumber as id,
@@ -388,18 +388,61 @@ BEGIN
     LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) trucker ON POD.U_SAPTrucker = trucker.CardCode
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
-    DECLARE @TotalInitialClient TABLE(id nvarchar(100), value int);
+    DECLARE @TotalAddtlCharges TABLE(id nvarchar(100), value float);
+    INSERT INTO @TotalAddtlCharges
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        CASE
+            WHEN @TabName = 'PRICING' THEN
+                (
+                    ISNULL(PRICING.U_AddtlDrop, 0) 
+                    + ISNULL(PRICING.U_BoomTruck, 0) 
+                    + ISNULL(PRICING.U_Manpower, 0) 
+                    + ISNULL(PRICING.U_Backload, 0)
+                )
+            ELSE NULL
+        END as value
+    FROM (
+        SELECT 
+            U_BookingNumber
+        FROM [dbo].[@PCTP_POD] WITH(NOLOCK)
+    ) POD
+    LEFT JOIN (
+        SELECT 
+            U_BookingId, U_AddtlDrop, U_BoomTruck, U_Manpower, U_Backload
+        FROM [dbo].[@PCTP_PRICING] WITH(NOLOCK)
+    ) PRICING ON PRICING.U_BookingId = POD.U_BookingNumber
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @AddtlCharges2 TABLE(id nvarchar(100), value float);
+    INSERT INTO @AddtlCharges2
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        CASE
+            WHEN @TabName = 'PRICING' THEN
+                CASE
+                    WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN 
+                        (SELECT value FROM @TotalAddtlCharges WHERE id = POD.U_BookingNumber)
+                    WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN 
+                        ((SELECT value FROM @TotalAddtlCharges WHERE id = POD.U_BookingNumber) / 1.12)
+                END
+            ELSE NULL
+        END as value
+    FROM (
+        SELECT 
+            U_BookingNumber, U_SAPClient
+        FROM [dbo].[@PCTP_POD] WITH(NOLOCK)
+    ) POD
+    LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) client ON POD.U_SAPClient = client.CardCode
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
+    DECLARE @TotalInitialClient TABLE(id nvarchar(100), value float);
     INSERT INTO @TotalInitialClient
     SELECT DISTINCT
         POD.U_BookingNumber as id,
         CASE
             WHEN @TabName = 'SUMMARY' OR @TabName = 'PRICING' THEN
-                CASE
-                    WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN 
-                        (ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0))
-                    WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN 
-                        ((ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0)) / 1.12)
-                END 
+                (SELECT value FROM @AddtlCharges2 WHERE id = POD.U_BookingNumber) 
                 + (SELECT value FROM @GrossClientRatesTax WHERE id = POD.U_BookingNumber)
                 + CASE
                     WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_Demurrage, 0)
@@ -422,7 +465,7 @@ BEGIN
     LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) client ON POD.U_SAPClient = client.CardCode
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
-    DECLARE @TotalInitialTruckers TABLE(id nvarchar(100), value int);
+    DECLARE @TotalInitialTruckers TABLE(id nvarchar(100), value float);
     INSERT INTO @TotalInitialTruckers
     SELECT DISTINCT
         POD.U_BookingNumber as id,
@@ -867,6 +910,29 @@ BEGIN
     -- LEFT JOIN (SELECT CardCode, VatStatus FROM OCRD WITH(NOLOCK)) trucker ON POD.U_SAPTrucker = trucker.CardCode
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
+    DECLARE @PODSONum TABLE(id nvarchar(100), value nvarchar(100));
+    INSERT INTO @PODSONum
+    SELECT DISTINCT
+        POD.U_BookingNumber as id,
+        CAST((
+            SELECT TOP 1
+            header.DocNum
+        FROM (
+            SELECT DocEntry, DocNum, CANCELED FROM ORDR WITH(NOLOCK)
+        ) header
+        LEFT JOIN (
+            SELECT DocEntry, ItemCode FROM RDR1 WITH(NOLOCK)
+        ) line ON line.DocEntry = header.DocEntry
+        WHERE line.ItemCode = POD.U_BookingNumber
+            AND header.CANCELED = 'N'
+        ) AS nvarchar(100)) as value
+    FROM (
+        SELECT 
+            U_BookingNumber
+        FROM [dbo].[@PCTP_POD] WITH(NOLOCK)
+    ) POD
+    WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
+
     WITH LOCAL_TP_FORMULA(
         U_BookingNumber, 
         DisableTableRow, 
@@ -1131,14 +1197,7 @@ BEGIN
         END AS U_PODNum,
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_PODSONum') THEN
-                CAST((
-                    SELECT TOP 1
-                    header.DocNum
-                FROM ORDR header
-                    LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
-                WHERE line.ItemCode = BILLING.U_BookingId
-                    AND header.CANCELED = 'N'
-                ) AS nvarchar(500))
+                (SELECT value FROM @PODSONum WHERE id = POD.U_BookingNumber)
             ELSE NULL
         END AS U_PODSONum,
         CAST(client.CardName AS nvarchar(500)) AS U_CustomerName,
@@ -1216,7 +1275,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalAddtlCharges') THEN
                 CASE
                     WHEN @TabName = 'PRICING' THEN 
-                        (ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0))
+                        (SELECT value FROM @TotalAddtlCharges WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
@@ -1517,12 +1576,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_AddtlCharges2') THEN
                 CASE
                     WHEN @TabName = 'PRICING' THEN
-                        CASE
-                            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN 
-                                (ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0))
-                            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN 
-                                ((ISNULL(PRICING.U_AddtlDrop, 0) + ISNULL(PRICING.U_BoomTruck, 0) + ISNULL(PRICING.U_Manpower, 0) + ISNULL(PRICING.U_Backload, 0)) / 1.12)
-                        END
+                        (SELECT value FROM @AddtlCharges2 WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
