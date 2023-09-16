@@ -393,7 +393,7 @@ BEGIN
     SELECT DISTINCT
         POD.U_BookingNumber as id,
         CASE
-            WHEN @TabName = 'PRICING' THEN
+            WHEN @TabName = 'PRICING' OR @TabName = 'BILLING' THEN
                 (
                     ISNULL(PRICING.U_AddtlDrop, 0) 
                     + ISNULL(PRICING.U_BoomTruck, 0) 
@@ -1448,10 +1448,7 @@ BEGIN
         END AS U_OtherCharges,
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_AddCharges') THEN
-                ISNULL(PRICING.U_AddtlDrop,0) + 
-                ISNULL(PRICING.U_BoomTruck,0) + 
-                ISNULL(PRICING.U_Manpower,0) + 
-                ISNULL(PRICING.U_Backload,0)
+                (SELECT value FROM @TotalAddtlCharges WHERE id = POD.U_BookingNumber)
             ELSE NULL
         END AS U_AddCharges,
         CASE

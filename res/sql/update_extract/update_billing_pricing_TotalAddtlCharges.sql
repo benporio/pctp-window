@@ -1,0 +1,36 @@
+-------->>CREATING TARGETS
+
+DROP TABLE IF EXISTS TMP_TARGET_20230916
+SELECT
+    POD.U_BookingNumber,
+    (
+        ISNULL(PRICING.U_AddtlDrop, 0) 
+        + ISNULL(PRICING.U_BoomTruck, 0) 
+        + ISNULL(PRICING.U_Manpower, 0) 
+        + ISNULL(PRICING.U_Backload, 0)
+    ) AS U_TotalAddtlCharges
+INTO TMP_TARGET_20230916
+FROM [dbo].[@PCTP_POD] POD WITH (NOLOCK)
+LEFT JOIN (
+    SELECT U_BookingId, U_AddtlDrop, U_BoomTruck, 
+    U_Manpower, U_Backload
+    FROM [dbo].[@PCTP_PRICING] WITH (NOLOCK)
+) PRICING ON POD.U_BookingNumber = PRICING.U_BookingId;
+
+-------->>BILLING_EXTRACT
+
+UPDATE BILLING_EXTRACT
+SET U_AddCharges = TMP.U_TotalAddtlCharges
+FROM TMP_TARGET_20230916 TMP
+WHERE TMP.U_BookingNumber = BILLING_EXTRACT.U_BookingNumber;
+
+-------->>PRICING_EXTRACT
+
+UPDATE PRICING_EXTRACT
+SET U_TotalAddtlCharges = TMP.U_TotalAddtlCharges
+FROM TMP_TARGET_20230916 TMP
+WHERE TMP.U_BookingNumber = PRICING_EXTRACT.U_BookingNumber;
+
+-------->>DELETING TMP_TARGET_20230916
+
+DROP TABLE IF EXISTS TMP_TARGET_20230916
