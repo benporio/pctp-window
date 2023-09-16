@@ -1206,10 +1206,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_GrossInitialRate') THEN
                 CASE
                     WHEN @TabName = 'BILLING' THEN 
-                        CASE
-                            WHEN ISNULL(client.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossClientRates, 0)
-                            WHEN ISNULL(client.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossClientRates, 0) / 1.12)
-                        END
+                        (SELECT value FROM @GrossClientRatesTax WHERE id = POD.U_BookingNumber)
                     ELSE NULL
                 END
             ELSE NULL
