@@ -23,7 +23,7 @@ final class PctpAPI
             $modelTab->methodTrack = 'getTableRowsDataWithHeaders';
             $tableRows = [];
             $tableRows[] = array_map(fn($z) => $z->description, $modelTab->columnDefinitions);
-            $rowDataArrays = $modelTab->getTableRowsData(true, isset($data->dataTableSetting) ? $data->dataTableSetting : null, true);
+            $rowDataArrays = $modelTab->getTableRowsData(true, isset($data->dataTableSetting) ? $data->dataTableSetting : null, true, isset($data->fetchedIdsToProcess) ? $data->fetchedIdsToProcess : null);
             $modelTab->methodTrack = '';
             foreach ($rowDataArrays as $rowDataArray) {
                 $tableRows[] = $rowDataArray;
@@ -56,7 +56,10 @@ final class PctpAPI
         $modelTab->fetchRows(
             self::$settings->viewOptions['data_table_common_find_header'] ?
             $model->findHeader : $modelTab->findHeader, 
-            $data->dataTableSetting
+            $data->dataTableSetting,
+            true,
+            true,
+            isset($data->fetchedIdsToProcess) ? $data->fetchedIdsToProcess : null
         );
         $tableRows = $modelTab->tableRows;
         if ((bool)$tableRows) {

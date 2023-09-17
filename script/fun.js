@@ -1257,6 +1257,7 @@ class PctpWindowView extends AbsWebSocketCaller {
             pricing: { ...tabInitSettings },
             treasury: { ...tabInitSettings },
         }
+        this.fetchedIdsToProcess = [];
     }
 
     get clientId() {
@@ -1319,6 +1320,21 @@ class PctpWindowView extends AbsWebSocketCaller {
             setTimeout(() => { p.doConstantsNeedRefresh = true; p.log('doConstantsNeedRefresh has now been set to true') }, this.#viewOptions.constants_refresh_waiting_time)
         }
         this.#realtimeDataRowController = this.getConfig('enable_data_row_realtime', false) ? new RealtimeDataRowController(`ws://${window.location.hostname}:8000/`, data.userInfo, data.viewOptions) : null;
+        const fetchedIdsToProcessEvent = new EventSource('http://localhost:8000/sse/id-to-refresh');
+        fetchedIdsToProcessEvent.onmessage = ((p) => (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (!!!data.ignorable || !data.ignorable) {
+                    console.log(data);
+                    if (!!data.fetchedIdsToProcess) {
+                        p.fetchedIdsToProcess = data.fetchedIdsToProcess;
+                    }
+                }
+            } catch (error) {
+                console.log(error);
+                console.log(event.data);
+            }
+        })(this);
         setScreenLoading(false)
     }
     getConfig(configName, defaultValue) {
@@ -1668,7 +1684,8 @@ class PctpWindowView extends AbsWebSocketCaller {
                     data: {
                         action: 'fetchDataRows',
                         data: {
-                            tab: tabName
+                            tab: tabName,
+                            fetchedIdsToProcess: !!this.fetchedIdsToProcess ? this.fetchedIdsToProcess.map(e => e.id) : null
                         }
                     }
                 },
@@ -2925,7 +2942,10 @@ class PctpWindowView extends AbsWebSocketCaller {
     async downloadExcel(tabName, jExcelIcon) {
         const fileName = `${tabName}-tab-excel`;
         if (!!this.#config.enable_excel_background_download) {
-            this.getApiData({ tab: tabName }, 'getTableRowsDataWithHeaders').then(async data => {
+            this.getApiData({ 
+                tab: tabName,
+                fetchedIdsToProcess: !!this.fetchedIdsToProcess ? this.fetchedIdsToProcess.map(e => e.id) : null
+             }, 'getTableRowsDataWithHeaders').then(async data => {
                 if (!!data.type && data.type === 'info') {
                     const startTime = new Date();
                     jExcelIcon.css('animation', 'color-change .6s infinite linear')
