@@ -192,7 +192,7 @@ abstract class APctpWindowTab extends ASerializableClass
         }
     }
 
-    public function fetchRows(PctpWindowHeader $header, object $dataTableSetting = null, bool $doAssignToTableRows = true, bool $doPreFetchProcess = true): array
+    public function fetchRows(PctpWindowHeader $header, object $dataTableSetting = null, bool $doAssignToTableRows = true, bool $doPreFetchProcess = true, array $fetchedIdsToProcess = null): array
     {
         if ($this->fetchTableRowsCount === 0) {
             $this->tableRows = [];
@@ -277,12 +277,29 @@ abstract class APctpWindowTab extends ASerializableClass
                 $minimizeBookingIdScript = preg_replace('/--COLUMNS[\s\S]+--COLUMNS/', "$bookingIdColumn AS BookingId", $bookingIdScript);
                 $preScript = "$minimizeBookingIdScript \n$newFilterClause \n$newOrderClause \n$offsetClause";
                 $bookingIds = SAPAccessManager::getInstance()->getRows($preScript);
-                $bookingIdsStr = "'" . join("','", array_map(fn ($z) => $z->BookingId, $bookingIds)) . "'";
+                $bookingIdsArr = array_map(fn ($z) => $z->BookingId, $bookingIds);
+                $oldCount = count($bookingIdsArr);
+                $newCount = count($bookingIdsArr);
+                if (!is_null($fetchedIdsToProcess) && count($fetchedIdsToProcess)>0) {
+                    $bookingIdsArr = array_values(array_filter($bookingIdsArr, fn($z) => !in_array($z, $fetchedIdsToProcess)));
+                    $newCount = count($bookingIdsArr);
+                }
+                $bookingIdsStr = "'" . join("','", $bookingIdsArr) . "'";
                 if ($doFetchFromExtract) {
-                    if ($doPreFetchProcess && $doRefreshExtractWhenFetching) $this->preFetchProcess($bookingIds);
-                    $newFilterClause = 'WHERE ' . $bookingIdColumn . " IN ($bookingIdsStr) ";
-                    $preScript = "$bookingIdScript \n$newFilterClause \n$newOrderClause \n$offsetClause";
-                    $partialTableRows = SAPAccessManager::getInstance()->getRows($preScript);
+                    if ($newCount>0) {
+                        if ($doPreFetchProcess && $doRefreshExtractWhenFetching) $this->preFetchProcess($bookingIds);
+                        $newFilterClause = 'WHERE ' . $bookingIdColumn . " IN ($bookingIdsStr) ";
+                        $preScript = "$bookingIdScript \n$newFilterClause \n$newOrderClause \n$offsetClause";
+                        $partialTableRows = SAPAccessManager::getInstance()->getRows($preScript);
+                    }
+                    if ($oldCount!==$newCount && !is_null($fetchedIdsToProcess) && count($fetchedIdsToProcess)>0) {
+                        $idsToProcess = array_values(array_filter(array_map(fn ($z) => $z->BookingId, $bookingIds), fn($z) => in_array($z, $fetchedIdsToProcess)));
+                        $idsToProcessStr = "'" . join(",", $idsToProcess) . "'";
+                        $tabName = str_replace('TAB', '', strtoupper(get_class($this)));
+                        $funtionFetchScript = str_replace([$tabName.'_EXTRACT', 'WITH (NOLOCK)'], ["fetchPctpDataRows('$tabName', $idsToProcessStr, DEFAULT)", ''], $bookingIdScript);
+                        $processedTableRows = SAPAccessManager::getInstance()->getRows($funtionFetchScript);
+                        if ((bool)$processedTableRows) $partialTableRows = [ ...$partialTableRows, ...$processedTableRows ];
+                    }
                 }
             } else {
                 $bookingIdColumn = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BookingId'), $tableAlias, $enableFieldsFindOptions);
@@ -960,7 +977,7 @@ abstract class APctpWindowTab extends ASerializableClass
         return $result;
     }
 
-    public function getTableRowsData(bool $isFreshFromDB = false, object $dataTableSetting = null, bool $disableUtf8Encoding = false): array
+    public function getTableRowsData(bool $isFreshFromDB = false, object $dataTableSetting = null, bool $disableUtf8Encoding = false, array $fetchedIdsToProcess = null): array
     {
         $arrayOfDataArray = [];
         if ($isFreshFromDB) {
@@ -968,7 +985,8 @@ abstract class APctpWindowTab extends ASerializableClass
                 $this->findHeader,
                 $dataTableSetting,
                 false,
-                false
+                false,
+                isset($fetchedIdsToProcess) ? $fetchedIdsToProcess : null
             );
             if (!(bool)$resultTableRows) return $arrayOfDataArray;
             // return $resultTableRows;
