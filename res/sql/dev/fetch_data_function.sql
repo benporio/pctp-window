@@ -990,7 +990,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalAP') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            (SELECT value FROM @TotalAP WHERE id = TP.U_BookingId)
+                            CAST((SELECT value FROM @TotalAP WHERE id = TP.U_BookingId) AS NUMERIC(19,6))
                         ELSE NULL
                     END
                 ELSE NULL
@@ -999,7 +999,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_VarTP') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            (SELECT value FROM @TotalAP WHERE id = TP.U_BookingId) - (TP.U_TotalPayable + TP.U_CAandDP + TP.U_Interest)
+                            CAST((SELECT value FROM @TotalAP WHERE id = TP.U_BookingId) - (TP.U_TotalPayable + TP.U_CAandDP + TP.U_Interest) AS NUMERIC(19,6))
                         ELSE NULL
                     END
                 ELSE NULL
@@ -1026,7 +1026,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_LostPenaltyCalc') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            (SELECT value FROM @LostPenaltyCalc WHERE id = TP.U_BookingId)
+                            CAST((SELECT value FROM @LostPenaltyCalc WHERE id = TP.U_BookingId) AS NUMERIC(19,6))
                         ELSE NULL
                     END
                 ELSE NULL
@@ -1035,7 +1035,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalSubPenalty') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            ISNULL(ABS((SELECT value FROM @TotalSubPenalties WHERE id = TP.U_BookingId)), 0)
+                            CAST(ISNULL(ABS((SELECT value FROM @TotalSubPenalties WHERE id = TP.U_BookingId)), 0) AS NUMERIC(19,6))
                         ELSE NULL
                     END
                 ELSE NULL
@@ -1044,7 +1044,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalPenaltyWaived') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            (SELECT value FROM @TotalPenaltyWaived WHERE id = TP.U_BookingId)
+                            CAST((SELECT value FROM @TotalPenaltyWaived WHERE id = TP.U_BookingId) AS NUMERIC(19,6))
                         ELSE NULL
                     END
                 ELSE NULL
@@ -1053,7 +1053,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_InteluckPenaltyCalc') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            (SELECT value FROM @InteluckPenaltyCalc WHERE id = TP.U_BookingId)
+                            CAST((SELECT value FROM @InteluckPenaltyCalc WHERE id = TP.U_BookingId) AS NUMERIC(19,6))
                         ELSE NULL
                     END
                 ELSE NULL
@@ -1071,7 +1071,7 @@ BEGIN
                 WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_ClientPenaltyCalc') THEN
                     CASE
                         WHEN @TabName = 'SUMMARY' OR @TabName = 'POD' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                            (SELECT value FROM @ClientPenaltyCalc WHERE id = TP.U_BookingId)
+                            CAST((SELECT value FROM @ClientPenaltyCalc WHERE id = TP.U_BookingId) AS NUMERIC(19,6))
                         ELSE NULL
                     END
                 ELSE NULL
@@ -1206,7 +1206,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_GrossInitialRate') THEN
                 CASE
                     WHEN @TabName = 'BILLING' THEN 
-                        (SELECT value FROM @GrossClientRatesTax WHERE id = POD.U_BookingNumber)
+                        CAST((SELECT value FROM @GrossClientRatesTax WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1272,7 +1272,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalAddtlCharges') THEN
                 CASE
                     WHEN @TabName = 'PRICING' THEN 
-                        (SELECT value FROM @TotalAddtlCharges WHERE id = POD.U_BookingNumber)
+                        CAST((SELECT value FROM @TotalAddtlCharges WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1448,7 +1448,7 @@ BEGIN
         END AS U_OtherCharges,
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_AddCharges') THEN
-                (SELECT value FROM @TotalAddtlCharges WHERE id = POD.U_BookingNumber)
+                CAST((SELECT value FROM @TotalAddtlCharges WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
             ELSE NULL
         END AS U_AddCharges,
         CASE
@@ -1487,7 +1487,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_GrossClientRatesTax') THEN
                 CASE
                     WHEN @TabName = 'PRICING' OR @TabName = 'BILLING' OR @TabName = 'SUMMARY' THEN 
-                        (SELECT value FROM @GrossClientRatesTax WHERE id = POD.U_BookingNumber)
+                        CAST((SELECT value FROM @GrossClientRatesTax WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1506,7 +1506,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_GrossTruckerRatesN') THEN
                 CASE
                     WHEN @TabName = 'TP' THEN
-                        (SELECT value FROM @GrossTruckerRatesTax WHERE id = POD.U_BookingNumber)
+                        CAST((SELECT value FROM @GrossTruckerRatesTax WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1530,7 +1530,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_GrossTruckerRatesTax') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'PRICING' THEN
-                        (SELECT value FROM @GrossTruckerRatesTax WHERE id = POD.U_BookingNumber)
+                        CAST((SELECT value FROM @GrossTruckerRatesTax WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1570,7 +1570,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_AddtlCharges2') THEN
                 CASE
                     WHEN @TabName = 'PRICING' THEN
-                        (SELECT value FROM @AddtlCharges2 WHERE id = POD.U_BookingNumber)
+                        CAST((SELECT value FROM @AddtlCharges2 WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1587,8 +1587,8 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_GrossProfitNet') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'PRICING' THEN
-                        (SELECT value FROM @GrossClientRatesTax WHERE id = POD.U_BookingNumber) 
-                        - (SELECT value FROM @GrossTruckerRatesTax WHERE id = POD.U_BookingNumber)
+                        CAST(((SELECT value FROM @GrossClientRatesTax WHERE id = POD.U_BookingNumber) 
+                        - (SELECT value FROM @GrossTruckerRatesTax WHERE id = POD.U_BookingNumber)) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1597,7 +1597,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalInitialClient') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'PRICING' THEN
-                        (SELECT value FROM @TotalInitialClient WHERE id = POD.U_BookingNumber)
+                        CAST((SELECT value FROM @TotalInitialClient WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1606,7 +1606,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalInitialTruckers') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                        (SELECT value FROM @TotalInitialTruckers WHERE id = POD.U_BookingNumber)
+                        CAST((SELECT value FROM @TotalInitialTruckers WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1615,8 +1615,8 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalGrossProfit') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'PRICING' THEN
-                        (SELECT value FROM @TotalInitialClient WHERE id = POD.U_BookingNumber) 
-                        - (SELECT value FROM @TotalInitialTruckers WHERE id = POD.U_BookingNumber)
+                        CAST((SELECT value FROM @TotalInitialClient WHERE id = POD.U_BookingNumber) 
+                        - (SELECT value FROM @TotalInitialTruckers WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1799,7 +1799,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalRecClients') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'BILLING' OR @TabName = 'PRICING' THEN
-                        (SELECT value FROM @TotalRecClients WHERE id = POD.U_BookingNumber)
+                        CAST((SELECT value FROM @TotalRecClients WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1828,7 +1828,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalPayable') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
-                        ISNULL(CASE
+                        CAST((ISNULL(CASE
                             WHEN ISNULL(trucker.VatStatus,'Y') = 'Y' THEN ISNULL(PRICING.U_GrossTruckerRates, 0)
                             WHEN ISNULL(trucker.VatStatus,'Y') = 'N' THEN (ISNULL(PRICING.U_GrossTruckerRates, 0) / 1.12)
                         END, 0) 
@@ -1854,7 +1854,7 @@ BEGIN
                         + ISNULL(TP.U_ActualCharges, 0) 
                         + ISNULL(TRY_PARSE(CAST(TP.U_BoomTruck2 AS nvarchar) AS FLOAT), 0) 
                         + ISNULL(TP.U_OtherCharges, 0) 
-                        - (SELECT value FROM @TOTALDEDUCTIONS WHERE id = POD.U_BookingNumber)
+                        - (SELECT value FROM @TOTALDEDUCTIONS WHERE id = POD.U_BookingNumber)) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1893,7 +1893,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TOTALDEDUCTIONS') THEN
                 CASE
                     WHEN @TabName = 'TP' THEN
-                        (SELECT value FROM @TOTALDEDUCTIONS WHERE id = POD.U_BookingNumber)
+                        CAST((SELECT value FROM @TOTALDEDUCTIONS WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1906,7 +1906,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalAR') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'BILLING' OR @TabName = 'PRICING' THEN
-                        (SELECT value FROM @TotalAR WHERE id = POD.U_BookingNumber)
+                        CAST((SELECT value FROM @TotalAR WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1915,8 +1915,8 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_VarAR') THEN
                 CASE
                     WHEN @TabName = 'SUMMARY' OR @TabName = 'BILLING' OR @TabName = 'PRICING' THEN
-                        (SELECT value FROM @TotalAR WHERE id = POD.U_BookingNumber) 
-                        - (SELECT value FROM @TotalRecClients WHERE id = POD.U_BookingNumber)
+                        CAST((SELECT value FROM @TotalAR WHERE id = POD.U_BookingNumber) 
+                        - (SELECT value FROM @TotalRecClients WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1979,7 +1979,7 @@ BEGIN
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_TotalSubPenalties') THEN
                 CASE
                     WHEN @TabName = 'POD' THEN 
-                        (SELECT value FROM @TotalSubPenalties WHERE id = POD.U_BookingNumber)
+                        CAST((SELECT value FROM @TotalSubPenalties WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6))
                     ELSE NULL
                 END
             ELSE NULL
@@ -1996,7 +1996,7 @@ BEGIN
                 END
             ELSE NULL
         END AS U_TotalPenaltyWaived,
-        (SELECT value FROM @TotalPenalty WHERE id = POD.U_BookingNumber) AS U_TotalPenalty,
+        CAST((SELECT value FROM @TotalPenalty WHERE id = POD.U_BookingNumber) AS NUMERIC(19,6)) AS U_TotalPenalty,
         ISNULL(TP.U_TotalPayableRec, 0) AS U_TotalPayableRec,
         CASE
             WHEN EXISTS(SELECT item FROM @AccessColumnList WHERE item = 'ALL' OR item = 'U_APDocNum') THEN
