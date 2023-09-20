@@ -406,7 +406,7 @@
   
 <script src="../script/fun.js"></script>
 <script src="../script/addon-pctp-window.js"></script>
-<script src="../script/verticalVw.js"></script>
+<!-- <script src="../script/verticalVw.js"></script> -->
 <!-- <script src="../script/verticalVwRovic.js"></script>
 <script src="../script/verticalVwGabz.js"></script>
 <script src="../script/verticalVwKarl.js"></script>
@@ -414,10 +414,10 @@
   
 
 <?php
-  include 'components/modalVerticalPOD.php';
-  include 'components/modalVerticalBilling.php';
-  include 'components/modalVerticalTP.php';
-  include 'components/modalVerticalPRICING.php';
+//   include 'components/modalVerticalPOD.php';
+//   include 'components/modalVerticalBilling.php';
+//   include 'components/modalVerticalTP.php';
+//   include 'components/modalVerticalPRICING.php';
   include '../../bottom.php' ;
 
   ?>
