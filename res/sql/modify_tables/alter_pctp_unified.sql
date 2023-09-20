@@ -1,0 +1,4 @@
+ALTER TABLE PCTP_UNIFIED
+ADD U_BookingId nvarchar(500);
+GO
+UPDATE PCTP_UNIFIED SET U_BookingId = U_BookingNumber;

@@ -18,7 +18,8 @@ class TpTab extends APctpWindowTab
     public function __construct(PctpWindowSettings $settings)
     {
         $this->script = file_get_contents(__DIR__ . '/../sql/tp.sql');
-        $this->extractScript = file_get_contents(__DIR__ . '/../sql/extract/tp_extract_qry.sql');
+        $newTag = isset($settings->config['enable_unified_table']) && $settings->config['enable_unified_table'] ? '_new' : '';
+        $this->extractScript = file_get_contents(__DIR__ . '/../sql/extract/tp_extract_qry'.$newTag.'.sql');
         $this->preFetchRefreshScripts = [
             file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_tp_extract.sql')
         ];
@@ -103,6 +104,26 @@ class TpTab extends APctpWindowTab
             new ColumnDefinition('PaymentStatus', 'Payment Status', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
             new ColumnDefinition('Remarks', 'Remarks', ColumnType::TEXT),
             new ColumnDefinition('APInvLineNum', 'AP Inv Line Number', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
+        ];
+        $this->defaultFetchFilterClause = $newTag === '' ? '' : " pod.U_PODStatusDetail LIKE '%Verified%' ";
+        $this->unifiedAliasColumns = $newTag === '' ? [] : [
+            'DisableTableRow' => 'tp_DisableTableRow',
+            ' Code ' => ' tp_Code ',
+            'DisableSomeFields' => 'tp_DisableSomeFields',
+            'U_PODNum' => 'tp_U_PODNum',
+            'U_RateBasis ' => 'tp_U_RateBasis ',
+            'U_TaxType ' => 'tp_U_TaxType ',
+            'U_Demurrage ' => 'tp_U_Demurrage ',
+            'U_AddtlDrop ' => 'tp_U_AddtlDrop ',
+            'U_BoomTruck ' => 'tp_U_BoomTruck ',
+            'U_BoomTruck2 ' => 'tp_U_BoomTruck2 ',
+            'U_Manpower ' => 'tp_U_Manpower ',
+            'U_BackLoad ' => 'tp_U_BackLoad ',
+            'U_Addtlcharges ' => 'tp_U_Addtlcharges ',
+            'U_RateAdjustments ' => 'tp_U_RateAdjustments ',
+            'U_ActualDemurrage ' => 'tp_U_ActualDemurrage ',
+            'U_DocNum ' => 'tp_U_DocNum ',
+            'U_Remarks ' => 'tp_U_Remarks ',
         ];
         $this->similarFields = [
             'TruckerSAP' => ['SAPTrucker']

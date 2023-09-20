@@ -266,7 +266,7 @@ BEGIN
     SELECT DISTINCT
         POD.U_BookingNumber as id,
         CASE
-            WHEN @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
+            WHEN @TabName = 'POD' OR @TabName = 'SUMMARY' OR @TabName = 'TP' OR @TabName = 'PRICING' THEN
                 dbo.computePODSubmitDeadline(
                     POD.U_DeliveryDateDTR,
                     ISNULL(client.U_CDC,0)

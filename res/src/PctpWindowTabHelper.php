@@ -175,8 +175,18 @@ final class PctpWindowTabHelper
             if (str_contains($filterClause, 'BE.') || str_contains($filterClause, 'TF.')) {
                 $caller->manipulateJoinTablesInExtract($filterClause, $script);
                 $filterClause = str_replace(['T0.', 'pod.'], ' X.', $filterClause);
+                if (isset($caller->unifiedAliasColumns) && (bool)$caller->unifiedAliasColumns) {
+                    foreach ($caller->unifiedAliasColumns as $column => $unifiedAlias) {
+                        $filterClause = str_replace('X.'.trim($column).' ', $unifiedAlias.' ', $filterClause);
+                    }
+                }
             } else {
                 $filterClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $filterClause);
+                if (isset($caller->unifiedAliasColumns) && (bool)$caller->unifiedAliasColumns) {
+                    foreach ($caller->unifiedAliasColumns as $column => $unifiedAlias) {
+                        $filterClause = str_replace($column, $unifiedAlias, $filterClause);
+                    }
+                }
             }
         }
         if ($_SERVER['REMOTE_ADDR'] === '::1') file_put_contents(__DIR__ . '/../sql/tmp/count.sql', "$script \n$filterClause");

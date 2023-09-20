@@ -18,7 +18,8 @@ class BillingTab extends APctpWindowTab
     public function __construct(PctpWindowSettings $settings)
     {
         $this->script = file_get_contents(__DIR__ . '/../sql/billing.sql');
-        $this->extractScript = file_get_contents(__DIR__ . '/../sql/extract/billing_extract_qry.sql');
+        $newTag = isset($settings->config['enable_unified_table']) && $settings->config['enable_unified_table'] ? '_new' : '';
+        $this->extractScript = file_get_contents(__DIR__ . '/../sql/extract/billing_extract_qry'.$newTag.'.sql');
         $this->preFetchRefreshScripts = [file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_billing_extract.sql')];
         $this->columnDefinitions = [
             new ColumnDefinition('Attachment', 'Attachment', ColumnType::TEXT),
@@ -101,6 +102,17 @@ class BillingTab extends APctpWindowTab
             new ColumnDefinition('ODOIn', 'ODO In', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
             new ColumnDefinition('ODOOut', 'ODO Out', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
             new ColumnDefinition('TotalUsage', 'Total Usage', ColumnType::INT, ColumnViewType::AUTO),
+        ];
+        $this->defaultFetchFilterClause = $newTag === '' ? '' : " pod.U_PODStatusDetail LIKE '%Verified%' OR pod.U_PODStatusDetail LIKE '%ForAdvanceBilling%' ";
+        $this->unifiedAliasColumns = $newTag === '' ? [] : [
+            'DisableTableRow' => 'bi_DisableTableRow',
+            'DisableSomeFields' => 'bi_DisableSomeFields',
+            ' Code ' => ' bi_Code ',
+            'U_PODNum' => 'bi_U_PODNum',
+            'U_BillingTeam' => 'bi_U_BillingTeam',
+            'U_RateAdjustments' => 'bi_U_RateAdjustments',
+            'U_ActualDemurrage' => 'bi_U_ActualDemurrage',
+            'U_BackLoad' => 'po_U_BackLoad',
         ];
         $this->relatedTables = [
             new RelatedTable('podTab', 'BookingId', 'BookingNumber'),
