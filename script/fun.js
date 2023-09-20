@@ -147,7 +147,11 @@ const fieldEvent = (jElement, eventType, targetTabName = '', globalEvent = '') =
                                     if (!exempted && invalidValues.includes(String(value).trim())) {
                                         p.log('invalid values detected', field, e[0].localName, jElement)
                                         p.log(`Field '${field}' should have a valid value`);
-                                        if (observee.result !== undefined && observee.result.failed !== undefined && observee.result.failed.callback !== undefined) {
+                                        if (observee.result !== undefined && observee.result.failed !== undefined 
+                                            && (observee.result.failed.callback !== undefined
+                                                || (!!observee.result.failed.for 
+                                                    && ((!!globalEvent && !!observee.result.failed.for[globalEvent])
+                                                        || (globalEvent==='' && !!observee.result.failed.for.default))))) {
                                             let failedEvent = observee.result.failed;
                                             let arg = {
                                                 row: row,
@@ -155,7 +159,13 @@ const fieldEvent = (jElement, eventType, targetTabName = '', globalEvent = '') =
                                                 jElement: jElement,
                                                 ...(failedEvent.arg !== undefined ? failedEvent.arg : {})
                                             }
-                                            if (p.isValidData(failedEvent.callback)) {
+                                            if (!!failedEvent.for) {
+                                                if (!!globalEvent && !!failedEvent.for[globalEvent]) {
+                                                    p[failedEvent.for[globalEvent]](arg)
+                                                } else if (globalEvent==='' && !!failedEvent.for.default && !!failedEvent.for.default.callback) {
+                                                    p[failedEvent.for.default.callback](arg)
+                                                }
+                                            } else if (p.isValidData(failedEvent.callback)) {
                                                 p[failedEvent.callback](arg)
                                             }
                                         } else {
