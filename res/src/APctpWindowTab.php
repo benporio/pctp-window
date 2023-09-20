@@ -271,6 +271,7 @@ abstract class APctpWindowTab extends ASerializableClass
             $bookingIds = [];
             $doFetchFromExtract = isset($this->settings->config['enable_fetch_from_extract']) && $this->settings->config['enable_fetch_from_extract'];
             $doRefreshExtractWhenFetching = !(isset($this->settings->config['disable_refresh_extract_when_fetching']) && $this->settings->config['disable_refresh_extract_when_fetching']);
+            $doFetchedIdsToProcess = !(isset($this->settings->config['enable_fetch_ids_to_process']) && $this->settings->config['enable_fetch_ids_to_process']);
             if ($this->extractScript !== '') {
                 $bookingIdScript = $this->extractScript;
                 $hasAppendedCustomAlias = false;
@@ -305,7 +306,7 @@ abstract class APctpWindowTab extends ASerializableClass
                 $bookingIdsArr = array_map(fn ($z) => $z->BookingId, $bookingIds);
                 $oldCount = count($bookingIdsArr);
                 $newCount = count($bookingIdsArr);
-                if (!is_null($fetchedIdsToProcess) && count($fetchedIdsToProcess)>0) {
+                if ($doFetchedIdsToProcess && !is_null($fetchedIdsToProcess) && count($fetchedIdsToProcess)>0) {
                     $bookingIdsArr = array_values(array_filter($bookingIdsArr, fn($z) => !in_array($z, $fetchedIdsToProcess)));
                     $newCount = count($bookingIdsArr);
                 }
@@ -317,7 +318,7 @@ abstract class APctpWindowTab extends ASerializableClass
                         $preScript = "$bookingIdScript \n$newFilterClause \n$newOrderClause \n$offsetClause";
                         $partialTableRows = SAPAccessManager::getInstance()->getRows($preScript);
                     }
-                    if ($oldCount!==$newCount && !is_null($fetchedIdsToProcess) && count($fetchedIdsToProcess)>0) {
+                    if ($doFetchedIdsToProcess && $oldCount!==$newCount && !is_null($fetchedIdsToProcess) && count($fetchedIdsToProcess)>0) {
                         $idsToProcess = array_values(array_filter(array_map(fn ($z) => $z->BookingId, $bookingIds), fn($z) => in_array($z, $fetchedIdsToProcess)));
                         $idsToProcessStr = "'" . join(",", $idsToProcess) . "'";
                         $tabName = str_replace('TAB', '', strtoupper(get_class($this)));
