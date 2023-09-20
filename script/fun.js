@@ -1320,7 +1320,7 @@ class PctpWindowView extends AbsWebSocketCaller {
             setTimeout(() => { p.doConstantsNeedRefresh = true; p.log('doConstantsNeedRefresh has now been set to true') }, this.#viewOptions.constants_refresh_waiting_time)
         }
         this.#realtimeDataRowController = this.getConfig('enable_data_row_realtime', false) ? new RealtimeDataRowController(`ws://${window.location.hostname}:8000/`, data.userInfo, data.viewOptions) : null;
-        const fetchedIdsToProcessEvent = new EventSource('http://localhost:8000/sse/id-to-refresh');
+        const fetchedIdsToProcessEvent = new EventSource(`http://${window.location.hostname}:8000/sse/id-to-refresh`);
         fetchedIdsToProcessEvent.onmessage = ((p) => (event) => {
             try {
                 const data = JSON.parse(event.data);

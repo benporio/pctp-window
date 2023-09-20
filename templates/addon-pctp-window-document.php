@@ -323,9 +323,68 @@ include '../../head.php';
     <!-- Not Valid BN for PV Modal -->
 
 
+<<<<<<< HEAD
     <script src="../script/fun.js"></script>
     <script src="../script/addon-pctp-window.js"></script>
 
+=======
+  <!-- Custom Modal -->
+  <div class="modal fade" id="customModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true" >
+    <div class="modal-dialog modal-xl" role="document" style="width:100%">
+      <!--Content-->
+      <div class="modal-content-full-width modal-content">
+        <!--Header-->
+        <div class="modal-header"  style="background-color: #A8A8A8; border-bottom-width: thick; border-color: #f0ad4e;">
+          <h4 class="modal-title w-100" id="myModalLabel" style="color:black"></h4>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <!--Body-->
+        <div class="modal-body">
+          <table class="table table-striped table-bordered table-hover" id="tblCustom" style="width:100%; height: 200px;">
+          <thead>
+            <tr>
+              <th style="position: sticky;top: 0;">#</th>
+              <th style="position: sticky;top: 0;">Transaction No.</th>
+              <th style="position: sticky;top: 0;">Transaction Type</th>
+              <th style="position: sticky;top: 0;">Tender</th>
+              <th style="position: sticky;top: 0;">From TLG</th>
+              <th style="position: sticky;top: 0;">Computed</th>
+              <th style="position: sticky;top: 0;">Remarks</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyTally">
+            
+          </tbody>
+        </table>
+        </div>
+        <!--Footer-->
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+      <!--/.Content-->
+    </div>
+  </div>
+  <!-- Custom Modal -->
+  
+<script src="../script/fun.js"></script>
+<script src="../script/addon-pctp-window.js"></script>
+<!-- <script src="../script/verticalVw.js"></script> -->
+<!-- <script src="../script/verticalVwRovic.js"></script>
+<script src="../script/verticalVwGabz.js"></script>
+<script src="../script/verticalVwKarl.js"></script>
+<script src="../script/verticalVwTin.js"></script> -->
+  
+
+<?php
+//   include 'components/modalVerticalPOD.php';
+//   include 'components/modalVerticalBilling.php';
+//   include 'components/modalVerticalTP.php';
+//   include 'components/modalVerticalPRICING.php';
+  include '../../bottom.php' ;
+>>>>>>> e9290d2 (issue #36 - corrected node sse url)
 
     <?php
     include '../../bottom.php'
