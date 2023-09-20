@@ -35,6 +35,7 @@ abstract class APctpWindowTab extends ASerializableClass
     public array $updateFieldAlias = [];
     public string $methodTrack = '';
     public array $excludeFromWildCardSearch = [];
+    public array $unifiedAliasColumns = [];
     public PctpWindowSettings $settings;
 
     protected function __construct(
@@ -89,7 +90,7 @@ abstract class APctpWindowTab extends ASerializableClass
             $filterClause = ' WHERE ' . join(' AND ', $filterClauseChunks);
         }
         $script = file_get_contents(__DIR__ . '/../sql/attachment.sql');
-        if ($this->extractScript !== '' && str_contains($filterClause, 'LIKE')) {
+        if ($this->extractScript !== '' && str_contains($filterClause, 'LIKE') && str_contains(str_replace("PODStatusDetail LIKE '%", '', $filterClause), 'LIKE')) {
             $bookingIds = $this->getBookingIdsFilter(false, $filterClause);
             if ((bool)$bookingIds) {
                 $bookingIdsStr = "'" . join("','", $bookingIds) . "'";
@@ -157,6 +158,12 @@ abstract class APctpWindowTab extends ASerializableClass
         $bookingIdScript = preg_replace('/--COLUMNS[\s\S]+--COLUMNS/', "$bookingIdColumn AS BookingId", $bookingIdScript);
         $newFilterClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $filterClause);
         $newOrderClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $orderClause);
+        if (isset($this->unifiedAliasColumns) && (bool)$this->unifiedAliasColumns) {
+            foreach ($this->unifiedAliasColumns as $column => $unifiedAlias) {
+                $newFilterClause = str_replace($column, $unifiedAlias, $newFilterClause);
+                $newOrderClause = str_replace($column, $unifiedAlias, $newOrderClause);
+            }
+        }
         $preScript = "$bookingIdScript \n$newFilterClause \n$newOrderClause \n$offsetClause";
         return SAPAccessManager::getInstance()->getRows($preScript);
     }
@@ -168,6 +175,12 @@ abstract class APctpWindowTab extends ASerializableClass
         $bookingIdScript = preg_replace('/--COLUMNS[\s\S]+--COLUMNS/', "$bookingIdColumn AS BookingId", $bookingIdScript);
         $newFilterClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $filterClause);
         $newOrderClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $orderClause);
+        if (isset($this->unifiedAliasColumns) && (bool)$this->unifiedAliasColumns) {
+            foreach ($this->unifiedAliasColumns as $column => $unifiedAlias) {
+                $newFilterClause = str_replace($column, $unifiedAlias, $newFilterClause);
+                $newOrderClause = str_replace($column, $unifiedAlias, $newOrderClause);
+            }
+        }
         $preScript = "$bookingIdScript \n$newFilterClause \n$newOrderClause \n$offsetClause";
         $bookingIds = SAPAccessManager::getInstance()->getRows($preScript);
         return array_map(fn ($z) => $z->BookingId, $bookingIds);
@@ -269,9 +282,21 @@ abstract class APctpWindowTab extends ASerializableClass
                     $this->manipulateJoinTablesInExtract($filterClause, $bookingIdScript);
                     $newFilterClause = str_replace(['T0.', 'pod.'], ' X.', $filterClause);
                     $newOrderClause = str_replace(['T0.', 'pod.'], ' X.', $orderClause);
+                    if (isset($this->unifiedAliasColumns) && (bool)$this->unifiedAliasColumns) {
+                        foreach ($this->unifiedAliasColumns as $column => $unifiedAlias) {
+                            $newFilterClause = str_replace('X.'.trim($column).' ', $unifiedAlias.' ', $newFilterClause);
+                            $newOrderClause = str_replace('X.'.trim($column).' ', $unifiedAlias.' ', $newOrderClause);
+                        }
+                    }
                 } else {
                     $newFilterClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $filterClause);
                     $newOrderClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $orderClause);
+                    if (isset($this->unifiedAliasColumns) && (bool)$this->unifiedAliasColumns) {
+                        foreach ($this->unifiedAliasColumns as $column => $unifiedAlias) {
+                            $newFilterClause = str_replace($column, $unifiedAlias, $newFilterClause);
+                            $newOrderClause = str_replace($column, $unifiedAlias, $newOrderClause);
+                        }
+                    }
                 }
                 $bookingIdColumn = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BookingId'), $hasAppendedCustomAlias ? $appendedCustomAlias : '', $enableFieldsFindOptions);
                 $minimizeBookingIdScript = preg_replace('/--COLUMNS[\s\S]+--COLUMNS/', "$bookingIdColumn AS BookingId", $bookingIdScript);
@@ -911,6 +936,11 @@ abstract class APctpWindowTab extends ASerializableClass
         if ($doFetchFromExtract) {
             $script = $this->extractScript;
             $whereClause = preg_replace('/\s[A-Za-z0-9]+\./', ' ', $whereClause);
+            if (isset($this->unifiedAliasColumns) && (bool)$this->unifiedAliasColumns) {
+                foreach ($this->unifiedAliasColumns as $column => $unifiedAlias) {
+                    $whereClause = str_replace($column, $unifiedAlias, $whereClause);
+                }
+            }
         }
         $result = SAPAccessManager::getInstance()->getRows($script . ' ' . $whereClause);
         if ((bool)$result && isset($result[0])) {
