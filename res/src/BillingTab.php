@@ -103,7 +103,7 @@ class BillingTab extends APctpWindowTab
             new ColumnDefinition('ODOOut', 'ODO Out', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
             new ColumnDefinition('TotalUsage', 'Total Usage', ColumnType::INT, ColumnViewType::AUTO),
         ];
-        $this->defaultFetchFilterClause = $newTag === '' ? '' : " pod.U_PODStatusDetail LIKE '%Verified%' OR pod.U_PODStatusDetail LIKE '%ForAdvanceBilling%' ";
+        $this->defaultFetchFilterClause = $newTag === '' ? '' : " ( pod.U_PODStatusDetail LIKE '%Verified%' OR pod.U_PODStatusDetail LIKE '%ForAdvanceBilling%' ) ";
         $this->unifiedAliasColumns = $newTag === '' ? [] : [
             'DisableTableRow' => 'bi_DisableTableRow',
             'DisableSomeFields' => 'bi_DisableSomeFields',
