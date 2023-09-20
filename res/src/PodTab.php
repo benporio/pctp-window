@@ -272,7 +272,11 @@ class PodTab extends APctpWindowTab
                                         'proceedFieldOnchange' => false
                                     ],
                                     'failed' => (object)[
-                                        'callback' => 'clearElementValue'
+                                        'for' => [
+                                            'default' => [
+                                                'callback' => 'clearElementValue',
+                                            ]
+                                        ]
                                     ]
                                 ]
                             ]
