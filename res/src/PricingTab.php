@@ -8,7 +8,8 @@ class PricingTab extends APctpWindowTab
     public function __construct(PctpWindowSettings $settings)
     {
         $this->script = file_get_contents(__DIR__ . '/../sql/pricing.sql');
-        $this->extractScript = file_get_contents(__DIR__ . '/../sql/extract/pricing_extract_qry.sql');
+        $newTag = isset($settings->config['enable_unified_table']) && $settings->config['enable_unified_table'] ? '_new' : '';
+        $this->extractScript = file_get_contents(__DIR__ . '/../sql/extract/pricing_extract_qry'.$newTag.'.sql');
         $this->preFetchRefreshScripts = [file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_pricing_extract.sql')];
         $this->columnDefinitions = [
             new ColumnDefinition('PODNum', 'POD Document Number', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
@@ -84,7 +85,21 @@ class PricingTab extends APctpWindowTab
             new ColumnDefinition('TotalAP', 'Total AP (Stand Alone)', ColumnType::FLOAT, ColumnViewType::AUTO),
             new ColumnDefinition('VarTP', 'Variance', ColumnType::FLOAT, ColumnViewType::AUTO),
         ];
-
+        $this->unifiedAliasColumns = $newTag === '' ? [] : [
+            'DisableSomeFields' => 'tp_DisableSomeFields',
+            ' Code ' => ' pr_Code ',
+            'DisableSomeFields2' => 'tp_DisableSomeFields2',
+            'U_PODNum' => 'pr_U_PODNum',
+            'U_RateBasis ' => 'pr_U_RateBasis ',
+            'U_TaxType ' => 'pr_U_TaxType ',
+            'U_AddtlDrop ' => 'pr_U_AddtlDrop ',
+            'U_BoomTruck ' => 'pr_U_BoomTruck ',
+            'U_Manpower ' => 'pr_U_Manpower ',
+            'U_Backload ' => 'pr_U_BackLoad ',
+            'U_BoomTruck2 ' => 'pr_U_BoomTruck2 ',
+            'U_AddtlCharges ' => 'pr_U_AddtlCharges ',
+            'U_APDocNum ' => 'pr_U_APDocNum ',
+        ];
         $this->relatedTables = [
             new RelatedTable('billingTab', 'BookingId', 'BookingId'),
             new RelatedTable('tpTab', 'BookingId', 'BookingId'),

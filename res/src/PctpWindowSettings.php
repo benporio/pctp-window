@@ -20,7 +20,7 @@ class PctpWindowSettings extends ASerializableClass
     public object $sapDocumentStructures;
     public string $uploadDirectory;
     public string $initialFilterClause = '';
-    public string $defaultOrderClause = 'ORDER BY T0.U_BookingDate DESC, T0.Code DESC';
+    public string $defaultOrderClause = 'ORDER BY T0.U_BookingDate DESC, T0.su_Code DESC';
     public array $constants;
     public array $apiData;
     public string $defaultSQLColumnPrefix = 'U_';
@@ -44,8 +44,9 @@ class PctpWindowSettings extends ASerializableClass
         $this->initialBookingDateTo = date('Y-m-d');
         $this->viewOptions = (array)json_decode(file_get_contents(__DIR__ . '/../json/view_options.json'));
         $this->config = (array)json_decode(file_get_contents(__DIR__ . '/../json/config.json'));
+        $newTag = isset($this->config['enable_unified_table']) && $this->config['enable_unified_table'] ? '_new' : '';
         $this->preFetchRefreshScripts = [
-            file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_all.sql'),
+            file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_all'.$newTag.'.sql'),
             // file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_billing_extract.sql'),
             // file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_tp_extract.sql'),
             // file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_pod_extract.sql'),

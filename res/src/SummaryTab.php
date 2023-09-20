@@ -7,7 +7,8 @@ class SummaryTab extends APctpWindowTab
     public function __construct(PctpWindowSettings $settings)
     {
         $this->script = file_get_contents(__DIR__ . '/../sql/summary.sql');
-        $this->extractScript = file_get_contents(__DIR__ . '/../sql/extract/summary_extract_qry.sql');
+        $newTag = isset($settings->config['enable_unified_table']) && $settings->config['enable_unified_table'] ? '_new' : '';
+        $this->extractScript = file_get_contents(__DIR__ . '/../sql/extract/summary_extract_qry'.$newTag.'.sql');
         $this->preFetchRefreshScripts = [file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_summary_extract.sql')];
         $this->columnDefinitions = [
             new ColumnDefinition('BookingNumber', 'Booking Number', ColumnType::ALPHANUMERIC, ColumnViewType::AUTO),
@@ -63,6 +64,10 @@ class SummaryTab extends APctpWindowTab
             new ColumnDefinition('TotalPayable', 'Total Payable to Truckers', ColumnType::FLOAT, ColumnViewType::AUTO),
             new ColumnDefinition('TotalAP', 'Total AP (Stand Alone)', ColumnType::FLOAT, ColumnViewType::AUTO),
             new ColumnDefinition('VarTP', 'Variance', ColumnType::FLOAT, ColumnViewType::AUTO),
+        ];
+        $this->unifiedAliasColumns = $newTag === '' ? [] : [
+            ' Code ' => ' su_Code ',
+            'U_APDocNum' => 'su_U_APDocNum',
         ];
         $this->foreignFields = [
             'ClientVatStatus',

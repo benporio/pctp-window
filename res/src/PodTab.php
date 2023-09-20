@@ -7,7 +7,8 @@ class PodTab extends APctpWindowTab
     public function __construct(PctpWindowSettings $settings)
     {
         $this->script = file_get_contents(__DIR__ . '/../sql/pod.sql');
-        $this->extractScript = file_get_contents(__DIR__ . '/../sql/extract/pod_extract_qry.sql');
+        $newTag = isset($settings->config['enable_unified_table']) && $settings->config['enable_unified_table'] ? '_new' : '';
+        $this->extractScript = file_get_contents(__DIR__ . '/../sql/extract/pod_extract_qry'.$newTag.'.sql');
         $this->preFetchRefreshScripts = [
             file_get_contents(__DIR__ . '/../sql/refresh_custom_tables/refresh_pod_extract.sql'),
         ];
@@ -111,6 +112,12 @@ class PodTab extends APctpWindowTab
             new ColumnDefinition('PercPenaltyCharge', '% Penalty Charged', ColumnType::FLOAT),
             new ColumnDefinition('Approvedby', 'Approved by', ColumnType::ALPHANUMERIC),
             new ColumnDefinition('_TotalPenaltyWaived', 'Total Penalty Waived', ColumnType::FLOAT, ColumnViewType::AUTO),
+        ];
+        $this->unifiedAliasColumns = $newTag === '' ? [] : [
+            'DisableTableRow' => 'po_DisableTableRow',
+            ' Code ' => ' po_Code ',
+            'U_BackLoad ' => 'po_U_BackLoad ',
+            'U_DocNum ' => 'po_U_DocNum ',
         ];
         $this->sqlStringColumns = ['WaybillNo'];
         $this->foreignFields = ['GroupProject', 'ARDocNum', 'PODSONum'];
