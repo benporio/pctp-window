@@ -745,7 +745,6 @@ SELECT
     END AS pr_DisableSomeFields2,
         CAST(POD.U_BookingDate AS DATE) AS U_BookingDate,
     CAST(POD.U_BookingNumber AS nvarchar(500)) AS U_BookingNumber,
-        CAST(POD.U_BookingNumber AS nvarchar(500)) AS U_BookingId,
     CAST(BILLING.U_BookingId AS nvarchar(500)) AS bi_U_PODNum,
     CAST(TP.U_BookingId AS nvarchar(500)) AS tp_U_PODNum,
     CAST(PRICING.U_BookingId AS nvarchar(500)) AS pr_U_PODNum,
@@ -1183,7 +1182,8 @@ SELECT
     CAST(POD.U_ApprovalStatus as nvarchar(500)) AS U_Status,
     CAST(PRICING.U_RemarksDTR as nvarchar(500)) AS U_RemarksDTR,
     CAST(POD.U_TotalInvAmount as nvarchar(500)) AS U_TotalInvAmount,
-    CAST(POD.U_DocNum as nvarchar(500)) AS U_PODDocNum
+    CAST(POD.U_DocNum as nvarchar(500)) AS U_PODDocNum,
+    CAST(POD.U_BookingNumber AS nvarchar(500)) AS U_BookingId
 
 --COLUMNS
 FROM [dbo].[@PCTP_POD] POD WITH (NOLOCK)
