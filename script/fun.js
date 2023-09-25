@@ -413,6 +413,14 @@ const fieldOnchange = (jElement) => {
 // Selecting Row via checkbox, only modified rows will checked
 const selectRow = (checkbox, isDirectClick = true) => {
     let row = p.getRow(checkbox);
+    if (!p.isValidData(row.data('pctpCode')) && isDirectClick) {
+        promptMessage1Button(
+            'ERROR', 
+            `'${p.getBookingId(p.getActiveTabName(), row)}' might be missing from the main table of ${p.getActiveTabName().toUpperCase()}. Cannot modify this row`, 
+            'OK'
+        );
+        return;
+    }
     let activeTabName = p.getActiveTabName();
     if (checkbox.is(':checked')) {
         let data = p.parseDataRow(row, activeTabName);
@@ -3124,6 +3132,7 @@ class PctpWindowView extends AbsWebSocketCaller {
     }
 
     getTab(jRow) {
+        if (!this.isValidData(jRow.data('pctpCode'))) throw `'${this.getBookingId(this.getActiveTabName(), jRow)}' might be missing from the main table of ${this.getActiveTabName().toUpperCase()}. Cannot modify this row`;
         return jRow.data('pctpCode').replace(/[\d|A-Z]+/, '');
     }
     getFormulas(jRow) {
@@ -3138,7 +3147,7 @@ class PctpWindowView extends AbsWebSocketCaller {
                 let constant = p.#constants[constantName].filter(c => c.Code === this.jRow.data('pctpCode'));
                 if (!constant.length) constant = p.#constants[constantName].filter(c => c.subCode1 !== undefined && c.subCode1 === this.jRow.data('pctpCode'));
                 if (!constant.length) constant = p.#constants[constantName].filter(c => c.subCode2 !== undefined && c.subCode2 === this.jRow.data('pctpCode'));
-                if (!constant.length) throw `Cannot find constant '${constantName}' of ${this.jRow.data('pctpCode')}`;
+                if (!constant.length) throw p.isValidData(this.jRow.data('pctpCode')) ? `Cannot find constant '${constantName}' of ${this.jRow.data('pctpCode')}` : `'${p.getBookingId(p.getActiveTabName(), this.jRow)}' might be missing from the main table of ${p.getActiveTabName().toUpperCase()}. Cannot modify this row`;
                 return constant[0];
             },
             addDays: function (date, days) {
