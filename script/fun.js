@@ -1338,14 +1338,55 @@ class PctpWindowView extends AbsWebSocketCaller {
             setTimeout(() => { p.doConstantsNeedRefresh = true; p.log('doConstantsNeedRefresh has now been set to true') }, this.#viewOptions.constants_refresh_waiting_time)
         }
         this.#realtimeDataRowController = this.getConfig('enable_data_row_realtime', false) ? new RealtimeDataRowController(`ws://${window.location.hostname}:8000/`, data.userInfo, data.viewOptions) : null;
-        const fetchedIdsToProcessEvent = new EventSource(`http://${window.location.hostname}:8001/sse/id-to-refresh`);
-        fetchedIdsToProcessEvent.onmessage = ((p) => (event) => {
+        const fetchedIdsToProcessEvent = new EventSource(`http://${window.location.hostname}:8000/sse/id-to-refresh`);
+        fetchedIdsToProcessEvent.onmessage = ((p) => async (event) => {
             try {
                 const data = JSON.parse(event.data);
                 if (!!!data.ignorable || !data.ignorable) {
                     console.log(data);
                     if (!!data.fetchedIdsToProcess) {
-                        p.fetchedIdsToProcess = data.fetchedIdsToProcess;
+                        if (this.getConfig('enable_fetch_ids_to_process', false)) p.fetchedIdsToProcess = data.fetchedIdsToProcess;
+                        if (data.fetchedIdsToProcess.length) {
+                            const eventArr = []
+                            try {
+                                for (const eventId of data.fetchedIdsToProcess) {
+                                    if (eventArr.some(e => eventId.serial.includes(e.event))) {
+                                        const event = eventId.serial.match(/AP\d+|AR\d+|SO\d+/)[0];
+                                        for (const eventItem of eventArr) {
+                                            if (event == eventItem.event) {
+                                                eventItem.ids.push(eventId.id)
+                                                break;
+                                            }
+                                        }
+                                    } else {
+                                        try {
+                                            if (eventId.serial.match(/AP\d+|AR\d+|SO\d+/).length) {
+                                                eventArr.push({
+                                                    event: eventId.serial.match(/AP\d+|AR\d+|SO\d+/)[0],
+                                                    ids: [eventId.id]
+                                                })
+                                            }
+                                        } catch (error) {
+                                            console.log(error)
+                                        }
+                                    }
+                                }
+                                if (!!eventArr.length) {
+                                    const eventInfo = eventArr.map(e => `${e.event} - ${e.ids.length} BN(s)`).join(', ')
+                                    $('#nodenotify').attr('title', `Refreshing BN(s) involve in: ${eventInfo}`);
+                                    $('.node-notify-info').html(`Refreshing BN(s) involve in: ${eventInfo}`);
+                                }
+                            } catch (error) {
+                                p.log(error)
+                                $('#nodenotify').attr('title', `Background activity failed to give info`);
+                                $('.node-notify-info').html(`Background activity failed to give info`);
+                            }
+                            if (!$('#nodenotify').hasClass('blinking')) $('#nodenotify').addClass('blinking')
+                        } else {
+                            if ($('#nodenotify').hasClass('blinking')) $('#nodenotify').removeClass('blinking')
+                            $('#nodenotify').attr('title', `No background activity`);
+                            $('.node-notify-info').html(`No background activity`);
+                        }
                     }
                 }
             } catch (error) {
