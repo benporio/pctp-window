@@ -296,4 +296,16 @@ $(() => {
             $('#chkbillingstatus').prop('checked', false)
         }
     });
+
+    $('#chkpodstatus').on('click', function () {
+        if ($(this).is(':checked')) {
+            $('#selpodstatus').val('')
+        }
+    });
+
+    $('#selpodstatus').on('change', function () {
+        if ($('#chkpodstatus').is(':checked')) {
+            $('#chkpodstatus').prop('checked', false)
+        }
+    });
 });
