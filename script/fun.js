@@ -1374,12 +1374,12 @@ class PctpWindowView extends AbsWebSocketCaller {
                                 if (!!eventArr.length) {
                                     const eventInfo = eventArr.map(e => `<strong>${e.event}</strong> - <span title="${e.ids.join(', ')}">${e.ids.length} BN(s)</span>`).join(', ')
                                     $('#nodenotify').attr('title', `Refreshing BN(s) involve in: ${eventInfo}`);
-                                    $('.node-notify-info').html(`Refreshing BN(s) involve in: ${eventInfo}`);
+                                    $('.node-notify-info').html(`Ongoing background activity`);
                                 }
                             } catch (error) {
                                 p.log(error)
                                 $('#nodenotify').attr('title', `Background activity failed to give info`);
-                                $('.node-notify-info').html(`Background activity failed to give info`);
+                                $('.node-notify-info').html(`Ongoing background activity`);
                             }
                             if (!$('#nodenotify').hasClass('blinking')) $('#nodenotify').addClass('blinking')
                         } else {
