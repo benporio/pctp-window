@@ -263,7 +263,7 @@ $header = $model->header;
             </div>
         </div>
     </div>
-    <div class="col-3">
+    <div class="col-2">
         <div class="row d-flex">
             <div class="col-4">
                 <button type="button" data-pctp-action="find" id="btnfind" class="btn btn-warning btn-rounded" style="color: black; font-weight: bold; width:100%; height:30px; background: linear-gradient(to bottom, #FCF6BA, #BF953F);">FIND</button>
@@ -309,9 +309,9 @@ $header = $model->header;
             </div>
         </div>
     </div>
-    <div class="col-3">
+    <div class="col-4">
         <div class="row d-flex justify-content-end" style="vertical-align: middle;">
-            <div class="node-notify-info col-auto align-self-end ml-auto mb-3" style="vertical-align: middle; text-align: right;">No background activity</div>
+            <div class="node-notify-info col-auto align-self-end ml-auto mb-3" style="vertical-align: middle; text-align: right; width: 500px; padding: 4px; overflow-x: auto; overflow-y: hidden; white-space: nowrap;">No background activity</div>
             <div class="led-box col-1 align-self-end" style="vertical-align: middle;">
                 <div id="nodenotify" class="led" title="No background activity"></div>
             </div>

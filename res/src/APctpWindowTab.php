@@ -344,6 +344,14 @@ abstract class APctpWindowTab extends ASerializableClass
                     $bookingIdColumn = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BookingId'), $tableAlias, $enableFieldsFindOptions);
                     $filterClause = 'WHERE ' . $bookingIdColumn . " IN ($bookingIdsStr) ";
                 }
+                if (isset($this->unifiedAliasColumns) && (bool)$this->unifiedAliasColumns) {
+                    foreach ($this->unifiedAliasColumns as $column => $unifiedAlias) {
+                        $filterClause = str_replace('.'.trim($unifiedAlias).' ', '.'.trim($column).' ', $filterClause);
+                        $orderClause = str_replace('.'.trim($unifiedAlias).' ', '.'.trim($column).' ', $orderClause);
+                    }
+                }
+                $filterClause = str_replace('.su_Code ', '.Code ', $filterClause);
+                $orderClause = str_replace('.su_Code ', '.Code ', $orderClause);
                 $finalScript = "$script \n$filterClause \n$orderClause";
                 if ($doPreFetchProcess && $doRefreshExtractWhenFetching) $this->preFetchProcess($bookingIds);
                 if ($_SERVER['REMOTE_ADDR'] === '::1') file_put_contents(__DIR__ . '/../sql/tmp/debug.sql', $finalScript);
