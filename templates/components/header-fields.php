@@ -272,7 +272,19 @@ $header = $model->header;
                 <span class="findTimeElapsed"></span>
             </div>
         </div>
-        <div class="row d-flex align-items-start clschkptfnodiv" style="margin-top: 275px; vertical-align: middle;">
+        <div class="row d-flex align-items-start clschkpodstatusdiv" style="margin-top: 235px; vertical-align: middle;">
+            <div class="col-12" style="vertical-align: middle;">
+                <div class="row d-flex">
+                    <div class="col-auto mr-0 pr-0" style="vertical-align: middle;">
+                        <input type="checkbox" id="chkpodstatus" data-pctp-header="includeBlankPodStatusOnly" style="width: 25px; height: 25px; margin-right: 10px;">
+                    </div>
+                    <div class="col m-0 p-0" style="display: inline; vertical-align: middle; margin-bottom: 50px;">
+                        <span>Inlude Blank POD Status only</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row d-flex align-items-start clschkbillingstatusdiv" style="margin-top: 6px; vertical-align: middle;">
             <div class="col-12" style="vertical-align: middle;">
                 <div class="row d-flex">
                     <div class="col-auto mr-0 pr-0" style="vertical-align: middle;">
@@ -284,7 +296,7 @@ $header = $model->header;
                 </div>
             </div>
         </div>
-        <div class="row d-flex align-items-start clschkptfnodiv" style="margin-top: 8px; vertical-align: middle;">
+        <div class="row d-flex align-items-start clschkptfnodiv" style="margin-top: 7px; vertical-align: middle;">
             <div class="col-12" style="vertical-align: middle;">
                 <div class="row d-flex">
                     <div class="col-auto mr-0 pr-0" style="vertical-align: middle;">
@@ -294,6 +306,14 @@ $header = $model->header;
                         <span>Inlude empty PTF No only</span>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-3">
+        <div class="row d-flex justify-content-end" style="vertical-align: middle;">
+            <div class="node-notify-info col-auto align-self-end ml-auto mb-3" style="vertical-align: middle; text-align: right;">No background activity</div>
+            <div class="led-box col-1 align-self-end" style="vertical-align: middle;">
+                <div id="nodenotify" class="led" title="No background activity"></div>
             </div>
         </div>
     </div>
