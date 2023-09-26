@@ -485,9 +485,9 @@ abstract class APctpWindowTab extends ASerializableClass
             $column = PctpWindowTabHelper::getInstance($this->settings)->getFormattedNativeColumn($this->getColumnReference('fieldName', 'DeliveryStatus'), false, $tableAlias);
             $filterClauseChunks[] = " ( $column = '$data->deliveryStatusOptions') ";
         }
-        if ((bool)$data->podStatusOptions && $this->doesColumnExist('PODStatusDetail')) {
+        if (($data->includeBlankPodStatusOnly || (bool)$data->podStatusOptions) && $this->doesColumnExist('PODStatusDetail')) {
             $column = PctpWindowTabHelper::getInstance($this->settings)->getFormattedNativeColumn($this->getColumnReference('fieldName', 'PODStatusDetail'), false, $tableAlias);
-            $filterClauseChunks[] = " ( $column = '$data->podStatusOptions') ";
+            $filterClauseChunks[] = $data->includeBlankPodStatusOnly ? " ( $column IS NULL OR $column = '' ) " :  " ( $column = '$data->podStatusOptions') ";
         }
         if (($data->includeBlankBillingStatusOnly || (bool)$data->billingStatusOptions) && $this->doesColumnExist('BillingStatus')) {
             $column = $this->getTabColumnFindOption($this->getColumnReference('fieldName', 'BillingStatus', true), $tableAlias, $enableFieldsFindOptions);

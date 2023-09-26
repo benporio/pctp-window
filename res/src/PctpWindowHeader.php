@@ -17,6 +17,7 @@ class PctpWindowHeader extends ASerializableClass
     public string $ptfNo = '';
     public bool $includePtfNo = false;
     public bool $includeBlankBillingStatusOnly = false;
+    public bool $includeBlankPodStatusOnly = false;
     public string $siRef = '';
     public string $soDocNum = '';
     public string $arDocNum = '';

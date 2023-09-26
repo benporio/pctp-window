@@ -135,7 +135,7 @@ class BillingTab extends APctpWindowTab
             'DocNum',
             'TripTicketNo',
             'WaybillNo',
-            'ShipmentNo',
+            'ShipmentManifestNo',
             'DeliveryReceiptNo',
             'SeriesNo',
             'OtherPODDoc',
@@ -162,7 +162,7 @@ class BillingTab extends APctpWindowTab
                 'field' => 'WaybillNo',
                 'involveInFindText' => true,
             ],
-            'ShipmentNo' => [
+            'ShipmentManifestNo' => [
                 'alias' => 'pod',
                 'field' => 'ShipmentNo',
                 'involveInFindText' => true,
