@@ -1,4 +1,24 @@
 <style>
+/* width */
+div.node-notify-info::-webkit-scrollbar {
+    width: 1px;
+    height: 15px;
+}
+
+/* Track */
+div.node-notify-info::-webkit-scrollbar-track {
+    background: #f1f1f1; 
+}
+
+/* Handle */
+div.node-notify-info::-webkit-scrollbar-thumb {
+    background: lightgray; 
+}
+
+/* Handle on hover */
+div.node-notify-info::-webkit-scrollbar-thumb:hover {
+    background: #555; 
+}
 .led-box {
     height: 30px;
     width: 25%;
