@@ -1339,6 +1339,11 @@ class PctpWindowView extends AbsWebSocketCaller {
         }
         this.#realtimeDataRowController = this.getConfig('enable_data_row_realtime', false) ? new RealtimeDataRowController(`ws://${window.location.hostname}:8000/`, data.userInfo, data.viewOptions) : null;
         const fetchedIdsToProcessEvent = new EventSource(`http://${window.location.hostname}:8000/sse/id-to-refresh`);
+        fetchedIdsToProcessEvent.onerror = (event) => {
+            if ($('#nodenotify').hasClass('blinking')) $('#nodenotify').removeClass('blinking')
+            $('#nodenotify').attr('title', `Event handler has stopped`);
+            $('.node-notify-info').html(`Event handler has stopped`);
+        }
         fetchedIdsToProcessEvent.onmessage = ((p) => async (event) => {
             try {
                 const data = JSON.parse(event.data);
@@ -1348,10 +1353,11 @@ class PctpWindowView extends AbsWebSocketCaller {
                         if (this.getConfig('enable_fetch_ids_to_process', false)) p.fetchedIdsToProcess = data.fetchedIdsToProcess;
                         if (data.fetchedIdsToProcess.length) {
                             const eventArr = []
+                            const eventsRegex = new RegExp(/AP\d+|AR\d+|SO\d+|MISSING|DUP|BN/);
                             try {
                                 for (const eventId of data.fetchedIdsToProcess) {
                                     if (eventArr.some(e => eventId.serial.includes(e.event))) {
-                                        const event = eventId.serial.match(/AP\d+|AR\d+|SO\d+/)[0];
+                                        const event = eventId.serial.match(eventsRegex)[0];
                                         for (const eventItem of eventArr) {
                                             if (event == eventItem.event) {
                                                 eventItem.ids.push(eventId.id)
@@ -1360,14 +1366,14 @@ class PctpWindowView extends AbsWebSocketCaller {
                                         }
                                     } else {
                                         try {
-                                            if (eventId.serial.match(/AP\d+|AR\d+|SO\d+/).length) {
+                                            if (eventId.serial.match(eventsRegex).length) {
                                                 eventArr.push({
-                                                    event: eventId.serial.match(/AP\d+|AR\d+|SO\d+/)[0],
+                                                    event: eventId.serial.match(eventsRegex)[0],
                                                     ids: [eventId.id]
                                                 })
                                             }
                                         } catch (error) {
-                                            console.log(error)
+                                            console.log(error, eventId)
                                         }
                                     }
                                 }
@@ -1375,6 +1381,9 @@ class PctpWindowView extends AbsWebSocketCaller {
                                     const eventInfo = eventArr.map(e => `<strong>${e.event}</strong> - <span title="${e.ids.join(', ')}">${e.ids.length} BN(s)</span>`).join(', ')
                                     $('#nodenotify').attr('title', `Ongoing background activity`);
                                     $('.node-notify-info').html(`Refreshing BN(s) involve in: ${eventInfo}`);
+                                } else {
+                                    $('#nodenotify').attr('title', `Ongoing background activity`);
+                                    $('.node-notify-info').html(`Ongoing background activity`);
                                 }
                             } catch (error) {
                                 p.log(error)
