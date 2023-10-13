@@ -1353,7 +1353,7 @@ class PctpWindowView extends AbsWebSocketCaller {
                         if (this.getConfig('enable_fetch_ids_to_process', false)) p.fetchedIdsToProcess = data.fetchedIdsToProcess;
                         if (data.fetchedIdsToProcess.length) {
                             const eventArr = []
-                            const eventsRegex = new RegExp(/AP\d+|AR\d+|SO\d+|MISSING|DUP|BN/);
+                            const eventsRegex = new RegExp(/AP\d+|AR\d+|SO\d+|OP\d+|MISSING|DUP|BN/);
                             try {
                                 for (const eventId of data.fetchedIdsToProcess) {
                                     if (eventArr.some(e => eventId.serial.includes(e.event))) {
