@@ -3,11 +3,20 @@ SELECT
 *
 INTO TMP_TARGET_$serial 
 FROM (
-    -----> issue #30
-	SELECT DISTINCT 
-		U_BookingNumber
-	FROM [@PCTP_POD] WITH(NOLOCK)
-	WHERE U_PVNo IN ('PV2303915')
+    SELECT DISTINCT 
+		BILLING.U_BookingId AS U_BookingNumber,
+        'SO-RELATED-BN' AS ISSUE
+	FROM [@PCTP_BILLING] BILLING WITH(NOLOCK)
+	-- LEFT JOIN [@PCTP_POD] POD ON POD.U_BookingNumber = BILLING.U_BookingId
+	WHERE EXISTS(
+		SELECT
+			1
+		FROM ORDR header WITH(NOLOCK)
+			LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
+		WHERE line.ItemCode = BILLING.U_BookingId
+			AND header.CANCELED = 'N'
+			AND header.DocNum IN (6404)
+	)
     
 ) CONDITIONAL_TARGETS
 WHERE U_BookingNumber IS NOT NULL
