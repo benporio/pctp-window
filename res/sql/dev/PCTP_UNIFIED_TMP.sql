@@ -17,12 +17,12 @@ SELECT
     tp_U_Remarks, U_GroupProject, U_Attachment, U_DeliveryOrigin, U_Destination, U_OtherPODDoc, U_RemarksPOD, U_PODStatusDetail, U_BTRemarks, U_DestinationClient, U_Remarks2, U_TripTicketNo, U_WaybillNo, U_ShipmentNo, 
     U_ShipmentManifestNo, U_DeliveryReceiptNo, U_SeriesNo, U_OutletNo, U_CBM, U_SI_DRNo, U_DeliveryMode, U_SourceWhse, U_SONo, U_NameCustomer, U_CategoryDR, U_IDNumber, U_ApprovalStatus, U_Status, U_RemarksDTR, 
     U_TotalInvAmount, U_PODDocNum, U_BookingId
-INTO PCTP_UNIFIED_TMP_JAN_TO_MAY
+INTO PCTP_UNIFIED_TMP_SEP_TO_OCT
 FROM fetchGenericPctpDataRows('I23318314TLA') X;
 
 --BOOKING IDS
-DECLARE @FromDate DATE = CAST('2023-01-01' AS DATE);
-DECLARE @ToDate DATE = CAST('2023-05-31' AS DATE);
+DECLARE @FromDate DATE = CAST('2023-09-01' AS DATE);
+DECLARE @ToDate DATE = CAST('2023-10-17' AS DATE);
 
 DECLARE @BookingIdList TABLE(item nvarchar(500));
 INSERT INTO @BookingIdList
@@ -712,7 +712,7 @@ WITH LOCAL_TP_FORMULA(
 )
 
 --->MAIN_QUERY
-INSERT INTO PCTP_UNIFIED_TMP_JAN_TO_MAY
+INSERT INTO PCTP_UNIFIED_TMP_SEP_TO_OCT
 SELECT
     --COLUMNS
     CAST(POD.Code AS nvarchar(500)) As su_Code,
@@ -1240,4 +1240,4 @@ SELECT
     tp_U_Remarks, U_GroupProject, U_Attachment, U_DeliveryOrigin, U_Destination, U_OtherPODDoc, U_RemarksPOD, U_PODStatusDetail, U_BTRemarks, U_DestinationClient, U_Remarks2, U_TripTicketNo, U_WaybillNo, U_ShipmentNo, 
     U_ShipmentManifestNo, U_DeliveryReceiptNo, U_SeriesNo, U_OutletNo, U_CBM, U_SI_DRNo, U_DeliveryMode, U_SourceWhse, U_SONo, U_NameCustomer, U_CategoryDR, U_IDNumber, U_ApprovalStatus, U_Status, U_RemarksDTR, 
     U_TotalInvAmount, U_PODDocNum, U_BookingId 
-FROM PCTP_UNIFIED_TMP_JAN_TO_MAY;
+FROM PCTP_UNIFIED_TMP_SEP_TO_OCT;
