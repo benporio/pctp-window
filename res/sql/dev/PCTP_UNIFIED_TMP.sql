@@ -1220,6 +1220,8 @@ FROM [dbo].[@PCTP_POD] POD WITH (NOLOCK)
     LEFT JOIN LOCAL_TP_FORMULA TF ON TF.U_BookingNumber = POD.U_BookingNumber
 WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
+DELETE FROM PCTP_UNIFIED WHERE U_BookingNumber IN (SELECT U_BookingNumber FROM PCTP_UNIFIED_TMP_SEP_TO_OCT);
+
 INSERT INTO PCTP_UNIFIED
 SELECT 
     su_Code, po_Code, bi_Code, tp_Code, pr_Code, po_DisableTableRow, bi_DisableTableRow, tp_DisableTableRow, bi_DisableSomeFields, tp_DisableSomeFields, pr_DisableSomeFields, pr_DisableSomeFields2, U_BookingDate, 
