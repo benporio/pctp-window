@@ -3,11 +3,11 @@ SELECT
 *
 INTO TMP_TARGET_$serial 
 FROM (
+    --SPECIFIC SO
     SELECT DISTINCT 
 		BILLING.U_BookingId AS U_BookingNumber,
         'SO-RELATED-BN' AS ISSUE
 	FROM [@PCTP_BILLING] BILLING WITH(NOLOCK)
-	-- LEFT JOIN [@PCTP_POD] POD ON POD.U_BookingNumber = BILLING.U_BookingId
 	WHERE EXISTS(
 		SELECT
 			1
@@ -15,9 +15,34 @@ FROM (
 			LEFT JOIN RDR1 line ON line.DocEntry = header.DocEntry
 		WHERE line.ItemCode = BILLING.U_BookingId
 			AND header.CANCELED = 'N'
-			AND header.DocNum IN (6404)
+			AND header.DocNum IN (6404) ---INSERT SO(s) HERE
 	)
-    
+    AND BILLING.U_BookingId <> ''
+    AND BILLING.U_BookingId IS NOT NULL
+
+    UNION
+
+    --SPECIFIC BN
+    SELECT DISTINCT 
+		POD.U_BookingNumber,
+        'BN-RELATED-BN' AS ISSUE
+	FROM [@PCTP_POD] POD WITH(NOLOCK)
+    WHERE POD.U_BookingNumber IN ('') ---INSERT BN(s) HERE
+    AND POD.U_BookingNumber <> ''
+    AND POD.U_BookingNumber IS NOT NULL
+
+    UNION
+
+    --SPECIFIC PVNo 
+    SELECT DISTINCT
+		TP.U_BookingId AS U_BookingNumber,
+        'PV-RELATED-BN' AS ISSUE
+    FROM [@PCTP_TP] TP WITH(NOLOCK)
+    WHERE TP.U_PVNo IN ('') ---INSERT PV(s) HERE
+    AND TP.U_PVNo <> ''
+    AND TP.U_PVNo IS NOT NULL
+    AND TP.U_BookingId <> ''
+    AND TP.U_BookingId IS NOT NULL
 ) CONDITIONAL_TARGETS
 WHERE U_BookingNumber IS NOT NULL
 ;
@@ -38,7 +63,7 @@ SET @BookingIdsCSV = SUBSTRING((
     FOR XML PATH (''), TYPE).value('text()[1]','nvarchar(max)'), 2, 10000000
 );
 
-DELETE FROM PCTP_UNIFIED WHERE U_BookingNumber IN ($bookingIds);
+DELETE FROM PCTP_UNIFIED WHERE U_BookingNumber IN (SELECT U_BookingNumber FROM TMP_TARGET_$serial WITH (NOLOCK));
 
 INSERT INTO PCTP_UNIFIED
 SELECT su_Code, po_Code, bi_Code, tp_Code, pr_Code, po_DisableTableRow, bi_DisableTableRow, tp_DisableTableRow, bi_DisableSomeFields, tp_DisableSomeFields, pr_DisableSomeFields, pr_DisableSomeFields2, U_BookingDate, 
