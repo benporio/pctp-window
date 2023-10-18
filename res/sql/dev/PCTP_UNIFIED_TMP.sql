@@ -1108,7 +1108,7 @@ SELECT
         AND header.CANCELED = 'N') as nvarchar(500)
     ) AS U_InvoiceNo,
     CAST(SUBSTRING((
-                SELECT CONCAT(', ', header.DocNum)  AS [text()]
+                SELECT DISTINCT CONCAT(', ', header.DocNum)  AS [text()]
     FROM INV1 line WITH (NOLOCK)
         LEFT JOIN (SELECT DocEntry, DocNum, CANCELED FROM OINV WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
     WHERE line.ItemCode = POD.U_BookingNumber
@@ -1118,7 +1118,7 @@ SELECT
     CAST(POD.U_DocNum as nvarchar(500)) AS po_U_DocNum,
     TF.U_DocNum AS tp_U_DocNum,
     CAST(SUBSTRING((
-                SELECT CONCAT(', ', header.DocNum)  AS [text()]
+                SELECT DISTINCT CONCAT(', ', header.DocNum)  AS [text()]
     FROM INV1 line WITH (NOLOCK)
         LEFT JOIN (SELECT DocEntry, DocNum, CANCELED FROM OINV WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
     WHERE line.ItemCode = POD.U_BookingNumber
@@ -1180,7 +1180,7 @@ SELECT
     CAST(POD.U_Attachment as nvarchar(500)) AS U_Attachment,
     CAST(POD.U_DeliveryOrigin as nvarchar(500)) AS U_DeliveryOrigin,
     CAST(POD.U_Destination as nvarchar(500)) AS U_Destination,
-    CAST(POD.U_OtherPODDoc as nvarchar(1000)) AS U_OtherPODDoc,
+    CAST(POD.U_OtherPODDoc as nvarchar(4000)) AS U_OtherPODDoc,
     CAST(POD.U_RemarksPOD as nvarchar(500)) AS U_RemarksPOD,
     CAST(POD.U_PODStatusDetail as nvarchar(500)) AS U_PODStatusDetail,
     CAST(POD.U_BTRemarks as nvarchar(500)) AS U_BTRemarks,
