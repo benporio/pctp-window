@@ -1,3 +1,9 @@
+--DATE RANGE
+DECLARE @FromDate DATE = CAST('2023-07-01' AS DATE);
+DECLARE @ToDate DATE = CAST('2023-11-20' AS DATE);
+
+DROP TABLE IF EXISTS PCTP_UNIFIED_REFRESH_TMP;
+
 SELECT 
     su_Code, po_Code, bi_Code, tp_Code, pr_Code, po_DisableTableRow, bi_DisableTableRow, tp_DisableTableRow, bi_DisableSomeFields, tp_DisableSomeFields, pr_DisableSomeFields, pr_DisableSomeFields2, U_BookingDate, 
     U_BookingNumber, bi_U_PODNum, tp_U_PODNum, pr_U_PODNum, U_PODSONum, U_CustomerName, U_GrossClientRates, U_GrossInitialRate, U_Demurrage, tp_U_Demurrage, tp_U_AddtlDrop, pr_U_AddtlDrop, 
@@ -17,13 +23,12 @@ SELECT
     tp_U_Remarks, U_GroupProject, U_Attachment, U_DeliveryOrigin, U_Destination, U_OtherPODDoc, U_RemarksPOD, U_PODStatusDetail, U_BTRemarks, U_DestinationClient, U_Remarks2, U_TripTicketNo, U_WaybillNo, U_ShipmentNo, 
     U_ShipmentManifestNo, U_DeliveryReceiptNo, U_SeriesNo, U_OutletNo, U_CBM, U_SI_DRNo, U_DeliveryMode, U_SourceWhse, U_SONo, U_NameCustomer, U_CategoryDR, U_IDNumber, U_ApprovalStatus, U_Status, U_RemarksDTR, 
     U_TotalInvAmount, U_PODDocNum, U_BookingId
-INTO PCTP_UNIFIED_TMP_SEP_TO_OCT
+INTO PCTP_UNIFIED_REFRESH_TMP
 FROM fetchGenericPctpDataRows('I23318314TLA') X;
 
---BOOKING IDS
-DECLARE @FromDate DATE = CAST('2023-09-01' AS DATE);
-DECLARE @ToDate DATE = CAST('2023-10-17' AS DATE);
+DELETE FROM PCTP_UNIFIED_REFRESH_TMP;
 
+--BOOKING IDS
 DECLARE @BookingIdList TABLE(item nvarchar(500));
 INSERT INTO @BookingIdList
 SELECT 
@@ -31,10 +36,7 @@ SELECT
 FROM [@PCTP_POD] WITH(NOLOCK)
 WHERE CAST(U_BookingDate AS DATE) >= CAST(@FromDate AS DATE)
 AND CAST(U_BookingDate AS DATE) <= CAST(@ToDate AS DATE)
-AND U_BookingNumber IS NOT NULL
-AND U_BookingNumber NOT IN (
-    SELECT U_BookingNumber FROM PCTP_UNIFIED WITH(NOLOCK)
-);
+AND U_BookingNumber IS NOT NULL;
 
 --VARIABLES
 DECLARE @ClientSubOverdue TABLE(id nvarchar(100), value int);
@@ -712,7 +714,7 @@ WITH LOCAL_TP_FORMULA(
 )
 
 --->MAIN_QUERY
-INSERT INTO PCTP_UNIFIED_TMP_SEP_TO_OCT
+INSERT INTO PCTP_UNIFIED_REFRESH_TMP
 SELECT
     --COLUMNS
     CAST(POD.Code AS nvarchar(500)) As su_Code,
@@ -1220,7 +1222,7 @@ FROM [dbo].[@PCTP_POD] POD WITH (NOLOCK)
     LEFT JOIN LOCAL_TP_FORMULA TF ON TF.U_BookingNumber = POD.U_BookingNumber
 WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
-DELETE FROM PCTP_UNIFIED WHERE U_BookingNumber IN (SELECT U_BookingNumber FROM PCTP_UNIFIED_TMP_SEP_TO_OCT);
+DELETE FROM PCTP_UNIFIED WHERE U_BookingNumber IN (SELECT U_BookingNumber FROM PCTP_UNIFIED_REFRESH_TMP);
 
 INSERT INTO PCTP_UNIFIED
 SELECT 
@@ -1242,4 +1244,4 @@ SELECT
     tp_U_Remarks, U_GroupProject, U_Attachment, U_DeliveryOrigin, U_Destination, U_OtherPODDoc, U_RemarksPOD, U_PODStatusDetail, U_BTRemarks, U_DestinationClient, U_Remarks2, U_TripTicketNo, U_WaybillNo, U_ShipmentNo, 
     U_ShipmentManifestNo, U_DeliveryReceiptNo, U_SeriesNo, U_OutletNo, U_CBM, U_SI_DRNo, U_DeliveryMode, U_SourceWhse, U_SONo, U_NameCustomer, U_CategoryDR, U_IDNumber, U_ApprovalStatus, U_Status, U_RemarksDTR, 
     U_TotalInvAmount, U_PODDocNum, U_BookingId 
-FROM PCTP_UNIFIED_TMP_SEP_TO_OCT;
+FROM PCTP_UNIFIED_REFRESH_TMP;
