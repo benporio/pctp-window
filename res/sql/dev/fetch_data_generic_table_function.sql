@@ -123,7 +123,6 @@ RETURNS @T TABLE(
     U_BillingDeadline DATETIME,
     U_BillingStatus nvarchar(100),
     U_SINo nvarchar(100),
-    bi_U_BillingTeam nvarchar(100),
     U_BillingTeam nvarchar(100),
     U_SOBNumber nvarchar(100),
     U_ForwardLoad nvarchar(100),
@@ -185,6 +184,7 @@ RETURNS @T TABLE(
     U_TotalPayableRec nvarchar(500),
     su_U_APDocNum nvarchar(50),
     pr_U_APDocNum nvarchar(50),
+    bi_U_BillingTeam nvarchar(500),
     U_ServiceType nvarchar(500),
     U_InvoiceNo nvarchar(500),
     U_ARDocNum nvarchar(500),
@@ -1163,7 +1163,7 @@ BEGIN
             END
         END AS U_BillingStatus,
         POD.U_SINo,
-        BILLING.U_BillingTeam As bi_U_BillingTeam,
+        -- BILLING.U_BillingTeam As bi_U_BillingTeam,
         POD.U_BillingTeam As U_BillingTeam,
         POD.U_SOBNumber,
         POD.U_ForwardLoad,
@@ -1271,6 +1271,14 @@ BEGIN
                 END
         END As su_U_APDocNum,
         TF.U_DocNum As pr_U_APDocNum,
+        CAST(SUBSTRING((
+			SELECT DISTINCT CONCAT(', ', CONCAT(billingTeam.firstName, ' ', billingTeam.lastName))  AS [text()]
+            FROM INV1 line WITH (NOLOCK)
+            LEFT JOIN (SELECT DocEntry, DocNum, CANCELED, OwnerCode FROM OINV WITH (NOLOCK)) header ON header.DocEntry = line.DocEntry
+            LEFT JOIN (SELECT empID, firstName, lastName FROM OHEM WITH(NOLOCK)) billingTeam ON billingTeam.empID = header.OwnerCode
+            WHERE line.ItemCode = POD.U_BookingNumber AND header.CANCELED = 'N'
+            FOR XML PATH (''), TYPE
+        ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(500)) As bi_U_BillingTeam,
         CAST((
             SELECT DISTINCT
             SUBSTRING(
