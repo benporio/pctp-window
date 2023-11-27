@@ -118,7 +118,7 @@ abstract class APctpWindowTab extends ASerializableClass
         return (object)$uploadedAttachment;
     }
 
-    private function getTabColumnOrderOption(int $columnIndex): string
+    private function getTabColumnOrderOption(int $columnIndex): string|array
     {
         $aliasPrefix = '';
         $columnDefinition = $this->columnDefinitions[$columnIndex];
@@ -228,7 +228,8 @@ abstract class APctpWindowTab extends ASerializableClass
                     $columnIndex = get_class($this) === 'SummaryTab' ? $order['column'] - 1 : $order['column'] - 2;
                     $nativeColumn = $this->getTabColumnOrderOption($columnIndex);
                     $dir = $order['dir'];
-                    $orders[] = "$nativeColumn $dir";
+                    $orders[] = is_string($nativeColumn) ? "$nativeColumn $dir" 
+                        : (is_array($nativeColumn) ? $nativeColumn[0]." $dir" : '');
                 }
                 $orderClause = 'ORDER BY ' . join(",\r\n", $orders);
             }
@@ -578,7 +579,8 @@ abstract class APctpWindowTab extends ASerializableClass
     {
         foreach ($rows as $row) {
             foreach ($row->props as $key => $value) {
-                if ((bool)$this->foreignFields && in_array($key, $this->foreignFields)) {
+                if ((bool)$this->foreignFields && in_array($key, $this->foreignFields) 
+                    && isset($row->forceUpdateFields) && !in_array($key, $row->forceUpdateFields)) {
                     unset($row->props->{$key});
                 }
             }

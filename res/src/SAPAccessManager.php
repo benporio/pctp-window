@@ -291,7 +291,7 @@ final class SAPAccessManager extends DataAccessProvider
                     $props = [];
                     foreach ($row->props as $key => $value) {
                         $columnDefinition = null;
-                        if ((bool)$caller->foreignFields && !in_array($key, $caller->foreignFields)) {
+                        if ((bool)$caller->foreignFields && (!in_array($key, $caller->foreignFields) || in_array($key, $row->forceUpdateFields))) {
                             if ((bool)$tab->notSameColumns 
                                 && isset($tab->notSameColumns[get_class($caller)])
                                 && in_array($key, $tab->notSameColumns[get_class($caller)])) {

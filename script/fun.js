@@ -143,6 +143,34 @@ const fieldEvent = (jElement, eventType, targetTabName = '', globalEvent = '') =
                                                 }
                                             })) exempted = true;
                                         }
+                                        if (exempted && !!observee?.exemptions?.success) {
+                                            let successEvent = observee.exemptions.success;
+                                            let arg = {
+                                                row: row,
+                                                activeTabName: activeTabName,
+                                                jElement: jElement,
+                                                ...successEvent.arg,
+                                            }
+                                            if (!!observee?.exemptions?.revert) {
+                                                jElement.on('excempt:revert', (event) => {
+                                                    let revertEvent = observee.exemptions.revert;
+                                                    let arg = {
+                                                        row: row,
+                                                        activeTabName: activeTabName,
+                                                        jElement: jElement,
+                                                        ...revertEvent.arg,
+                                                    }
+                                                    p[revertEvent.callback](arg);
+                                                    jElement.off('excempt:revert');
+                                                })
+                                                jElement.bind('change', (event) => {
+                                                    if (event?.target?.value && !eventOptions.some(e => e.values.includes(event.target.value))) {
+                                                        jElement.trigger('excempt:revert');
+                                                    }
+                                                })
+                                            }
+                                            p[successEvent.callback](arg);
+                                        }
                                     }
                                     if (!exempted && invalidValues.includes(String(value).trim())) {
                                         p.log('invalid values detected', field, e[0].localName, jElement)
@@ -290,7 +318,17 @@ const fieldEvent = (jElement, eventType, targetTabName = '', globalEvent = '') =
                                     p.log('relatedUpdates', p.relatedUpdates)
                                 }
                             }
-                            if (!(globalEvent === 'initialize' && successEvent.callback.includes('prompt'))) p[successEvent.callback](arg);
+                            if (!(globalEvent === 'initialize' && successEvent.callback.includes('prompt'))) {
+                                p[successEvent.callback](arg);
+                                if (!!arg?.field) {
+                                    const fieldName = arg.field.replace(/^_/, '')
+                                    if (!!arg?.otherTab) {
+                                        !!p.modelPostTriggers[arg.otherTab]?.[fieldName] && p.modelPostTriggers[arg.otherTab][fieldName]()
+                                    } else if (!!arg?.activeTabName) {
+                                        !!p.modelPostTriggers[arg.activeTabName]?.[fieldName] && p.modelPostTriggers[arg.activeTabName][fieldName]()
+                                    }
+                                }
+                            }
                             if (!targetTabName) selectTableRow(row.find('input[type=checkbox]'), true);
                         }
                     }
@@ -1208,6 +1246,7 @@ class PctpWindowView extends AbsWebSocketCaller {
     #userInfo;
     #clientId = '';
     #realtimeDataRowController;
+    #modelPostTriggers;
     constructor() {
         super();
         this.currentRowTabCode = '';
@@ -1222,6 +1261,7 @@ class PctpWindowView extends AbsWebSocketCaller {
         this.#actionValidations = {};
         this.#viewOptions = {};
         this.#config = {};
+        this.#modelPostTriggers = {};
         this.relatedUpdates = [];
         this.user = {};
         this.rowIndexCodePairs = {
@@ -1289,7 +1329,12 @@ class PctpWindowView extends AbsWebSocketCaller {
     get userInfo() {
         return this.#userInfo;
     }
-
+    get columnDefinitions() {
+        return this.#columnDefinitions;
+    }
+    get modelPostTriggers() {
+        return this.#modelPostTriggers;
+    }
     get uploadedAttachment() {
         return this.#uploadedAttachment;
     }
@@ -1898,6 +1943,47 @@ class PctpWindowView extends AbsWebSocketCaller {
                         p.log(`Search took ${findTimer.stop(true)} (${tabName.toUpperCase()} - ${settings.json.data.length} displayed rows)`)
                     }
                     setScreenLoading(false, true);
+                },
+                footerCallback: function(row, data, start, end, display) {
+                    const api = this.api();
+                    const parseFloatValue = (val) => {
+                        return Number(String(val).trim().replace(',', '')) || 0;
+                    }
+                    p.columnDefinitions[tabName].forEach((columnDefinition, i) => {
+                        const columnIndex = tabName === 'summary' ? i + 1 : i + 2;
+                        if (columnDefinition.columnType === 'FLOAT') {
+                            const updateSummaryFooter = (api, columnIndex, jElements, parseFloatValue) => {
+                                const floatDataArr = jElements.map(jElem => parseFloatValue(jElem.val() || jElem.text()));
+                                const maxData = Math.max(...floatDataArr);
+                                const minData = Math.min(...floatDataArr);
+                                const sumData = floatDataArr.reduce((a, b) => a + b, 0);
+                                const aveData = sumData / floatDataArr.length;
+                                api.column(columnIndex).footer().innerHTML = `
+                                    <div class="row d-flex">
+                                        <div id="${tabName}-${columnIndex}" class="col column-summary">
+                                            <span>SUM: </span><span>${p.formatAsMoney(sumData)}</span><br>
+                                            <span>AVE: </span><span>${p.formatAsMoney(aveData)}</span><br>
+                                            <span>MIN: </span><span>${p.formatAsMoney(minData)}</span><br>
+                                            <span>MAX: </span><span>${p.formatAsMoney(maxData)}</span><br>
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                            const jElements = api.column(columnIndex, { page: 'current' }).data().toArray().map(a => $(a));
+                            updateSummaryFooter(api, columnIndex, jElements, parseFloatValue);
+                            const pctpModel = jElements[0]?.data('pctpModel');
+                            if (!!pctpModel) {
+                                if (!!!p.modelPostTriggers[tabName]) p.modelPostTriggers[tabName] = {}
+                                p.modelPostTriggers[tabName] = {
+                                    ...p.modelPostTriggers[tabName],
+                                    [pctpModel]: () => {
+                                        const updatedJElements = $(`#tabtbl${tabName} *[data-pctp-model="${pctpModel}"]`).toArray().map(a => $(a));
+                                        updateSummaryFooter(api, columnIndex, updatedJElements, parseFloatValue);
+                                    }
+                                }
+                            }
+                        }
+                    })
                 }
             });
         } else {
@@ -2072,7 +2158,14 @@ class PctpWindowView extends AbsWebSocketCaller {
                 const columnDefinition = this.#columnDefinitions[arg.activeTabName].filter(f => f.fieldName === fieldName)[0];
                 let newTdHtml = '';
                 newTdHtml += `<td style="vertical-align: middle; ${columnDefinition.columnType === 'DATE' ? 'min-width: 155px;' : ''}">`;
-                let data = e.data('pctpValue');
+                let data = arg?.retainCurrentData ? ((p, jElement, columnDefinition) => {
+                    const jElementValue = e.val() || e.text();
+                    if (this.isValidData(String(jElementValue).trim()) 
+                        && (columnDefinition.columnType === 'FLOAT' && Number(String(jElementValue).replace(',', '')) !== 0)) {
+                        return columnDefinition.columnType === 'FLOAT' ? Number(String(jElementValue).replace(',', '')) : jElementValue
+                    }
+                    return e.data('pctpValue')
+                })(this, e, columnDefinition) : e.data('pctpValue');
                 let dataHtml = e.html();
                 let placeHolder = 'No data';
                 let events = '';
@@ -2144,8 +2237,12 @@ class PctpWindowView extends AbsWebSocketCaller {
                 // }
                 let exclude = '';
                 const foreignFields = this.#foreignFields[arg.activeTabName];
-                if (foreignFields !== undefined && foreignFields.length && foreignFields.includes(columnDefinition.fieldName)) {
+                if (!!!arg?.canBeUpdate && foreignFields !== undefined && foreignFields.length && foreignFields.includes(columnDefinition.fieldName)) {
                     exclude = 'data-pctp-update-exclude';
+                }
+                let forceUpdate = '';
+                if (!!arg?.canBeUpdate && foreignFields !== undefined && foreignFields.length && foreignFields.includes(columnDefinition.fieldName)) {
+                    forceUpdate = 'data-pctp-update-force';
                 }
                 // if ((bool)$modelTab -> foreignFields && in_array($columnDefinition -> fieldName, $modelTab -> foreignFields)) {
                 //     $exclude = 'data-pctp-update-exclude';
@@ -2157,6 +2254,7 @@ class PctpWindowView extends AbsWebSocketCaller {
                     cascade,
                     groupChange,
                     exclude,
+                    forceUpdate,
                 ].filter(s => s !== undefined).join(' ');
                 switch (columnDefinition.columnViewType) {
                     case 'DROPDOWN':
@@ -2236,7 +2334,7 @@ class PctpWindowView extends AbsWebSocketCaller {
                             </div>`
                         } else {
                             newTdHtml += `<input ${additionalDataAtttributes} 
-                                data-pctp-type="${columnDefinition.columnType.value}" 
+                                data-pctp-type="${columnDefinition.columnType}" 
                                 ${events !== '' ? 'data-pctp-observer' : ''} 
                                 ${!events.includes('onchange') ? 'onchange="fieldOnchange($(this))"' : ''}  
                                 data-pctp-model="${fieldName}" 
@@ -2293,6 +2391,7 @@ class PctpWindowView extends AbsWebSocketCaller {
         data['rowCode'] = row.data('pctpCode');
         data['Code'] = this.getRowCode(tab, row);
         data['BookingId'] = this.getBookingId(tab, row)
+        data['forceUpdateFields'] = [];
         row.find('a[data-pctp-model]:not([data-pctp-formula],[data-pctp-update-exclude])').each(function () {
             let attachmentObj = p.uploadedAttachment[tab][row.data('pctpCode')];
             if (p.isValidData(attachmentObj) && $(this).data('pctpValue') != attachmentObj.attachment) {
@@ -2304,8 +2403,12 @@ class PctpWindowView extends AbsWebSocketCaller {
         })
         row.find('input.edit-field:not([data-pctp-update-exclude])').each(function () {
             if (dontConsiderChanges || String($(this).data('pctpValue')).replace(/\s/g, '') != String($(this).val()).replace(/\s/g, '')) {
-                props[$(this).data('pctpModel')] = $(this).val();
-                if (!dontConsiderChanges) old[$(this).data('pctpModel')] = $(this).data('pctpValue');
+                const model = $(this).data('pctpModel');
+                props[model] = $(this).val();
+                if (!dontConsiderChanges) old[model] = $(this).data('pctpValue');
+                if ($(this).data('pctpUpdateForce') !== undefined) {
+                    data['forceUpdateFields'].push(model);
+                }
             }
         })
         row.find('select.edit-field:not([data-pctp-update-exclude])').each(function () {
@@ -2359,7 +2462,9 @@ class PctpWindowView extends AbsWebSocketCaller {
             setTimeout(() => { p.doConstantsNeedRefresh = true; p.log('doConstantsNeedRefresh has now been set to true') }, this.#viewOptions.constants_refresh_waiting_time)
         }
         this.renderRowFormulas(tab, row);
-        if (this.isAnObservee(jElement, tab, 'onchange')) { console.log(`run observer events runner by ${jElement.data('pctpModel')}`); fieldEvent(jElement, 'onchange', tab); }
+        const elemModel = jElement.data('pctpModel')
+        if (this.isAnObservee(jElement, tab, 'onchange')) { console.log(`run observer events runner by ${elemModel}`); fieldEvent(jElement, 'onchange', tab); }
+        !!this.modelPostTriggers[tab]?.[elemModel] && this.modelPostTriggers[tab][elemModel]()
     }
 
     getRow(jElement) {
