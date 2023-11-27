@@ -534,12 +534,17 @@ BEGIN
             FROM OINV H WITH(NOLOCK)
             LEFT JOIN (SELECT DocEntry, ItemCode, PriceAfVAT FROM INV1 WITH(NOLOCK)) L ON H.DocEntry = L.DocEntry
             WHERE H.CANCELED = 'N' AND L.ItemCode = POD.U_BookingNumber
-        ), 0) as value
+        ), BILLING.U_TotalAR) as value
     FROM (
         SELECT 
             U_BookingNumber
         FROM [dbo].[@PCTP_POD] WITH(NOLOCK)
     ) POD
+    LEFT JOIN (
+        SELECT 
+            U_BookingId, U_TotalAR
+        FROM [dbo].[@PCTP_BILLING] WITH(NOLOCK)
+    ) BILLING ON BILLING.U_BookingId = POD.U_BookingNumber
     WHERE POD.U_BookingNumber IN (SELECT item FROM @BookingIdList);
 
     DECLARE @TotalRecClients TABLE(id nvarchar(100), value float);
@@ -1279,7 +1284,7 @@ BEGIN
             WHERE line.ItemCode = POD.U_BookingNumber AND header.CANCELED = 'N'
             FOR XML PATH (''), TYPE
         ).value('text()[1]','nvarchar(max)'), 2, 1000) as nvarchar(500)) As bi_U_BillingTeam,
-        CAST((
+        ISNULL(CAST((
             SELECT DISTINCT
             SUBSTRING(
                     (
@@ -1297,8 +1302,8 @@ BEGIN
             AND header.U_ServiceType IS NOT NULL
             AND header.CANCELED = 'N'
             ) as nvarchar(500)
-        ) AS U_ServiceType,
-        CAST((
+        ), POD.U_ServiceType) AS U_ServiceType,
+        ISNULL(CAST((
             SELECT DISTINCT
             SUBSTRING(
                     (
@@ -1317,7 +1322,7 @@ BEGIN
             LEFT JOIN INV1 line ON line.DocEntry = header.DocEntry
         WHERE line.ItemCode = POD.U_BookingNumber
             AND header.CANCELED = 'N') as nvarchar(500)
-        ) AS U_InvoiceNo,
+        ), POD.U_SINo) AS U_InvoiceNo,
         CAST(SUBSTRING((
                     SELECT DISTINCT CONCAT(', ', header.DocNum)  AS [text()]
         FROM INV1 line WITH (NOLOCK)

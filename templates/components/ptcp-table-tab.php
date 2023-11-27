@@ -34,6 +34,21 @@
             </tr>
         <?php endif ?>
     </tbody>
+    <tfoot>
+        <tr>
+            <th style="background-color: lightgray !important; border-color: lightgray !important;"></th>
+            <?php if($tabKeyword !== 'summary'): ?>
+                <th style="background-color: lightgray !important; border-color: lightgray !important;"></th>
+            <?php endif ?>
+            <?php foreach($columnDefinitions as $columnDefinition): ?>
+                <?php if ($columnDefinition->columnViewType === ColumnViewType::HIDDEN) : ?>
+                    <?php continue; ?>
+                <?php else : ?>
+                    <th style="background-color: lightgray !important; border-color: lightgray !important;"></th>
+                <?php endif ?>
+            <?php endforeach ?>
+        </tr>
+    </tfoot>
 </table>
 
 <style>
