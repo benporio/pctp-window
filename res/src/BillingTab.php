@@ -306,7 +306,7 @@ class BillingTab extends APctpWindowTab
                         ],
                         (object)[
                             'values' => ['Billed'],
-                            'for' => [''],
+                            'for' => ['', 'initialize'],
                             'observee' => (object)[
                                 'fields' => ['DocNum'],
                                 'acceptedValuesRegex' => '',
@@ -317,7 +317,29 @@ class BillingTab extends APctpWindowTab
                                             'field' => 'SAPClient',
                                             'value' => '@SAPClientBillingLogicExemption'
                                         ]
-                                    ]
+                                    ],
+                                    'success' => [
+                                        'callback' => 'enableFields',
+                                        'arg' => (object)[
+                                            'fieldNames' => [
+                                                'ServiceType',
+                                                'InvoiceNo',
+                                                'TotalAR'
+                                            ],
+                                            'canBeUpdate' => true,
+                                            'retainCurrentData' => true
+                                        ]
+                                    ],
+                                    'revert' => [
+                                        'callback' => 'disableFields',
+                                        'arg' => (object)[
+                                            'fieldNames' => [
+                                                'ServiceType',
+                                                'InvoiceNo',
+                                                'TotalAR'
+                                            ]
+                                        ]
+                                    ],
                                 ],
                                 'result' => (object)[
                                     'failed' => (object)[
